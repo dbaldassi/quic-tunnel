@@ -4,6 +4,9 @@
 
 #include "udp_socket.h"
 
+namespace out
+{
+
 UdpSocket::UdpSocket(const char* hostname, int port) : _port(port), _socket(-1), _host(NULL)
 {
   memset((char *)&_addr, 0, sizeof(_addr));
@@ -46,4 +49,6 @@ UdpSocket::~UdpSocket()
     _socket = -1;
     _recv_thread.join();
   }
+}
+
 }

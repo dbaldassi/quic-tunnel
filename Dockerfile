@@ -1,7 +1,5 @@
 FROM debian:bullseye
 
-ARG tunnel
-
 RUN apt-get update && apt-get install -y \
     build-essential           \
     g++                       \
@@ -48,5 +46,4 @@ WORKDIR /root/quic-forwarding
 
 RUN chmod +x run.sh
 
-ENV TUNNEL=$tunnel
-ENTRYPOINT ./build/${tunnel}
+ENTRYPOINT [ "./build/quic-tunnel" ]

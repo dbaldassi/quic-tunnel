@@ -6,6 +6,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+namespace in
+{
+
 class UdpSocket
 {
   static constexpr auto MAX_BUF_LEN = 2048u;
@@ -29,4 +32,6 @@ public:
   bool send_back(const char * buf, size_t len);
 };
 
+}
+  
 #endif /* UDP_SOCKET_H */

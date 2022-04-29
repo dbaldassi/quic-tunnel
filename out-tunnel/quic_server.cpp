@@ -95,7 +95,7 @@ QuicOutTunnelTransportFactory::make(folly::EventBase* evb,
 
 // QuicServer /////////////////////////////////////////////////////////////////
 
-QuicServer::QuicServer(const std::string& host, uint16_t port, UdpSocket * udp_socket)
+QuicServer::QuicServer(const std::string& host, uint16_t port, out::UdpSocket * udp_socket)
   : _host(host), _port(port), _server(quic::QuicServer::createQuicServer()), _udp_socket(udp_socket)
 {
   _handler = std::make_unique<CallbackHandler>();

@@ -15,11 +15,11 @@ class CallbackHandler : public quic::QuicSocket::ConnectionSetupCallback,
 			public quic::QuicSocket::ReadCallback,
 			public quic::QuicSocket::WriteCallback,
 			public quic::QuicSocket::DatagramCallback,
-			public UdpSocketCallback
+			public out::UdpSocketCallback
 {
   folly::EventBase*                 _evb;
   std::shared_ptr<quic::QuicSocket> _transport;
-  UdpSocket *                       _udp_socket;
+  out::UdpSocket *                       _udp_socket;
   std::deque<quic::StreamId>        _queue_ids;
   
 public:
@@ -29,7 +29,7 @@ public:
     _transport = sock;
   }
   void set_evb(folly::EventBase* evb)   noexcept { _evb = evb; }
-  void set_udp_socket(UdpSocket * sock) noexcept { _udp_socket = sock; }
+  void set_udp_socket(out::UdpSocket * sock) noexcept { _udp_socket = sock; }
   
   /* ConnectionSetupCallback */
   void onFirstPeerPacketProcessed() noexcept override;

@@ -8,6 +8,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+namespace out
+{
+
 class UdpSocketCallback
 {
 public:
@@ -46,5 +49,6 @@ public:
   ~UdpSocket() noexcept;
 };
 
+}
 
 #endif /* UDP_SOCKET_H */

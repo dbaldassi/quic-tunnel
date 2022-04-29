@@ -5,6 +5,9 @@
 
 #include "udp_socket.h"
 
+namespace in
+{
+
 UdpSocket::UdpSocket(int port) noexcept : _port(port), _socket(-1)
 {
   _socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -67,4 +70,6 @@ void UdpSocket::close()
 UdpSocket::~UdpSocket() noexcept
 {
   close();
+}
+
 }

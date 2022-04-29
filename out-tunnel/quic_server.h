@@ -64,10 +64,10 @@ class QuicServer
   std::shared_ptr<quic::QuicServer> _server;
   std::unique_ptr<CallbackHandler>  _handler;
   
-  UdpSocket * _udp_socket;
+  out::UdpSocket * _udp_socket;
   
 public:
-  explicit QuicServer(const std::string& host, uint16_t port, UdpSocket * udp_socket);
+  explicit QuicServer(const std::string& host, uint16_t port, out::UdpSocket * udp_socket);
 
   void start();
 };
