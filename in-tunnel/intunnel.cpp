@@ -25,7 +25,7 @@ int run_client(int turn_port, uint16_t quic_port)
 
     const char * buffer = udp_socket.get_buffer();
     
-    qclient.send_message_stream(buffer, len);
+    qclient.send_message_datagram(buffer, len);
   }
 
   return 0;

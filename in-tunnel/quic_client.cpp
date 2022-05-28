@@ -28,6 +28,10 @@ void QuicClient::start()
 								  std::move(sock),
 								  std::move(fizz_client_context));
 
+    _quic_transport->setHostname("echo.com");
+    _quic_transport->addNewPeerAddress(addr);
+    _quic_transport->setDatagramCallback(this);
+
     quic::TransportSettings settings;
     // enable datagram
     settings.datagramConfig.enabled      = true;
@@ -37,9 +41,6 @@ void QuicClient::start()
     
     _quic_transport->setTransportSettings(settings);
     _quic_transport->setTransportStatsCallback(std::make_shared<quic::samples::LogQuicStats>("client"));
-    _quic_transport->setDatagramCallback(this);
-    _quic_transport->setHostname("echo.com");
-    _quic_transport->addNewPeerAddress(addr);
     _quic_transport->setQLogger(QLog::create(_qlog_path));
 
     /*auto state = _quic_transport->getState();

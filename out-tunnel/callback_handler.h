@@ -19,7 +19,7 @@ class CallbackHandler : public quic::QuicSocket::ConnectionSetupCallback,
 {
   folly::EventBase*                 _evb;
   std::shared_ptr<quic::QuicSocket> _transport;
-  out::UdpSocket *                       _udp_socket;
+  out::UdpSocket *                  _udp_socket;
   std::deque<quic::StreamId>        _queue_ids;
   
 public:

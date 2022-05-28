@@ -61,4 +61,5 @@ target_link_libraries( quic-tunnel PRIVATE
   mvfst::mvfst_d6d_probe_raiser
   mvfst::mvfst_d6d_state_functions
   mvfst::mvfst_d6d_types
+  gflags
   )

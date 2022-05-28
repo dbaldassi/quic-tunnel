@@ -81,14 +81,8 @@ QuicOutTunnelTransportFactory::make(folly::EventBase* evb,
 						   ctx);
 
   _handler->set_quic_socket(transport);
-
-  quic::TransportSettings settings;
-  settings.datagramConfig.enabled      = true;
-  settings.datagramConfig.readBufSize  = 2048;
-  settings.datagramConfig.writeBufSize = 2048;
-
+  
   transport->setDatagramCallback(_handler);
-  transport->setTransportSettings(settings);
   
   return transport;
 }
@@ -108,6 +102,13 @@ QuicServer::QuicServer(const std::string& host, uint16_t port, out::UdpSocket * 
 
   auto ctx = create_server_ctx();
   _server->setFizzContext(ctx);
+  
+  auto settings = _server->getTransportSettings();
+  settings.datagramConfig.enabled      = true;
+  settings.datagramConfig.readBufSize  = 2048;
+  settings.datagramConfig.writeBufSize = 2048;
+  
+  _server->setTransportSettings(std::move(settings));
 }
 
 void QuicServer::start()
