@@ -88,6 +88,23 @@ void CallbackHandler::onKnob(uint64_t, uint64_t, quic::Buf)
   LOG(INFO) << "onKnob";
 }
 
+// Datagram ///////////////////////////////////////////////////////////////////
+
+void CallbackHandler::onDatagramsAvailable() noexcept
+{
+  // LOG(INFO) << "on Datagrams available";
+  auto res = _transport->readDatagrams();
+  if(res.hasError()) {
+    LOG(ERROR) << "readDatagrams() error: " << res.error();
+    return;
+  }
+
+  for(const auto& dg : res.value()) {
+    auto copy = dg.bufQueue().front()->cloneCoalesced();
+    _udp_socket->send((const char*)copy->data(), copy->length());
+  }
+}
+
 // ReadCallback ///////////////////////////////////////////////////////////////
 void CallbackHandler::readAvailable(quic::StreamId id) noexcept
 {
@@ -140,26 +157,20 @@ void CallbackHandler::onConnectionWriteError(quic::QuicError error) noexcept
 
 }
 
-// Datagram ///////////////////////////////////////////////////////////////////
-
-void CallbackHandler::onDatagramsAvailable() noexcept
-{
-  LOG(INFO) << "on Datagrams available";
-}
-
 // UdpSocketCallback //////////////////////////////////////////////////////////
 
 void CallbackHandler::onUdpMessage(const char * buffer, size_t len) noexcept
 {
-  _evb->runInEventBaseThread([this, &buffer, &len]() {
-    std::string msg{buffer, len};
+  std::string m{buffer, len};
+
+  _evb->runInEventBaseThread([this, msg=std::move(m)]() {
     // LOG(INFO) << "OnUDPmessage : " << msg;
-    auto id = _queue_ids.back();
-    _queue_ids.pop_back();
+    // auto id = _queue_ids.back();
+    // _queue_ids.pop_back();
 
     auto qbuf = folly::IOBuf::copyBuffer(std::move(msg));
 
-    auto res = _transport->writeChain(id, std::move(qbuf), false);
+    auto res = _transport->writeDatagram(std::move(qbuf));
     if(res.hasError()) {
       LOG(ERROR) << "In quic tunnel write chaine error=" << uint32_t(res.error());
     }

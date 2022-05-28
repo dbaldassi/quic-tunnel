@@ -43,7 +43,7 @@ class QuicClient : public quic::QuicSocket::ConnectionSetupCallback,
   std::map<quic::StreamId, uint64_t>         _recv_offsets;
   folly::fibers::Baton                       _start_done;
   quic::StreamId                             _stream_id;
-  std::function<void(const std::string&)>    _on_received_callback;
+  std::function<void(const char*, size_t)>    _on_received_callback;
   
   folly::ScopedEventBaseThread _network_thread;
   
@@ -58,7 +58,7 @@ public:
   void send_message_stream(const char * buffer, size_t len);
   void send_message_datagram(const char * buffer, size_t len);
 
-  void set_on_received_callback(std::function<void(const std::string&)> callback) {
+  void set_on_received_callback(std::function<void(const char*, size_t)> callback) {
     _on_received_callback = callback;
   }
   

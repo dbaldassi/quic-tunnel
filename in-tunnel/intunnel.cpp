@@ -13,8 +13,8 @@ int run_client(int turn_port, uint16_t quic_port)
   in::UdpSocket  udp_socket{turn_port};
   QuicClient qclient{"127.0.0.1", quic_port};  
   
-  qclient.set_on_received_callback([&udp_socket](const std::string& msg) {
-    udp_socket.send_back(msg.c_str(), msg.size());
+  qclient.set_on_received_callback([&udp_socket](const char* msg, size_t length) {
+    udp_socket.send_back(msg, length);
   });
   
   qclient.start();

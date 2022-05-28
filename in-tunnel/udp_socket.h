@@ -11,7 +11,7 @@ namespace in
 
 class UdpSocket
 {
-  static constexpr auto MAX_BUF_LEN = 2048u;
+  static constexpr auto MAX_BUF_LEN = 1200u;
   
   int  _port;
   int  _socket;

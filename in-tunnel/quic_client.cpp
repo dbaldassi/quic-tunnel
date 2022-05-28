@@ -99,10 +99,12 @@ void QuicClient::send_message_datagram(const char * buffer, size_t len)
 
     auto res = _quic_transport->writeDatagram(std::move(qbuf));
     if(res.hasError()) {
-      LOG(ERROR) << "In quic tunnel write chaine error=" << uint32_t(res.error())
+      LOG(ERROR) << "In quic tunnel write dgram error=" << uint32_t(res.error())
 		 << " " << _quic_transport->getDatagramSizeLimit()
 		 << " " << l
 		 << " " << maxWriteFrameSize;
+      
+      std::exit(1);
     }
   });
 }
@@ -196,6 +198,23 @@ void QuicClient::onKnob(uint64_t, uint64_t, quic::Buf)
   LOG(INFO) << "onKnob";
 }
 
+// Datagrams //////////////////////////////////////////////////////////////////
+
+void QuicClient::onDatagramsAvailable() noexcept
+{
+  // LOG(INFO) << "On Datagram available";
+  auto res = _quic_transport->readDatagrams();
+  if(res.hasError()) {
+    LOG(ERROR) << "readDatagrams() error: " << res.error();
+    return;
+  }
+
+  for(const auto& dg : res.value()) {
+    auto copy = dg.bufQueue().front()->cloneCoalesced();
+    if(_on_received_callback) _on_received_callback((const char *)copy->data(), copy->length());
+  }
+}
+
 // ReadCallback ///////////////////////////////////////////////////////////////
 void QuicClient::readAvailable(quic::StreamId id) noexcept
 {
@@ -215,7 +234,7 @@ void QuicClient::readAvailable(quic::StreamId id) noexcept
   }
 
   // LOG(INFO) << "Message received : " << copy->moveToFbString().toStdString();
-  if(_on_received_callback) _on_received_callback(copy->moveToFbString().toStdString());
+  if(_on_received_callback) _on_received_callback((const char *)copy->data(), copy->length());
 }
 
 void QuicClient::readError(quic::StreamId id, quic::QuicError error) noexcept
@@ -249,11 +268,4 @@ void QuicClient::onStreamWriteError(quic::StreamId id, quic::QuicError error) no
 void QuicClient::onConnectionWriteError(quic::QuicError error) noexcept
 {
 
-}
-
-// Datagrams //////////////////////////////////////////////////////////////////
-
-void QuicClient::onDatagramsAvailable() noexcept
-{
-  LOG(INFO) << "On Datagram available";
 }
