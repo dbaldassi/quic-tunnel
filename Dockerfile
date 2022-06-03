@@ -34,6 +34,10 @@ RUN mkdir build
 
 WORKDIR build
 
+ENV CC "/root/quic-forwarding/gcc-12/bin/gcc"
+ENV CXX "/root/quic-forwarding/gcc-12/bin/g++"
+ENV LD_LIBRARY_PATH "/root/quic-forwarding/gcc-12/lib/../lib64"
+
 RUN cmake .. \
     -Dmvfst_DIR=mvfst/lib/cmake/mvfst \
     -Dfolly_DIR=mvfst/lib/cmake/folly \
@@ -42,8 +46,6 @@ RUN cmake .. \
 
 RUN make
 
-WORKDIR /root/quic-forwarding
+RUN mkdir tunnel-in-logs
 
-RUN chmod +x run.sh
-
-ENTRYPOINT [ "./build/quic-tunnel" ]
+ENTRYPOINT [ "./quic-tunnel" ]

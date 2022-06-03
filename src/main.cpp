@@ -1,12 +1,15 @@
-
 #include <iostream>
+#include <optional>
+
 #include <getopt.h>
+
+#include "in-tunnel/intunnel.h"
 
 #include <fmt/core.h>
 #include <fmt/color.h>
 
-#include "in-tunnel/intunnel.h"
 #include "out-tunnel/outtunnel.h"
+#include "controls/websocket_server.h"
 
 namespace def
 {
@@ -14,6 +17,7 @@ namespace def
 constexpr auto UDP_PORT  = 3479;
 constexpr auto TURN_PORT = 3478;
 constexpr auto QUIC_PORT = 8888;
+constexpr auto WEBSOCKET_PORT = 3333;
 constexpr const char * TURN_HOSTNAME = "turn.dabaldassi.fr";
 
 }
@@ -39,8 +43,18 @@ void display_help()
 
   fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold, "--turn-port ");
   fmt::print(fg(fmt::color::steel_blue) | fmt::emphasis::bold, "PORT");
-  fmt::print(" : Set the port of the actual turn relay server "
+  fmt::print(" : Set the port of the actual turn server "
+	     "(default {})\n", def::TURN_HOSTNAME);
+
+  fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold, "--turn-addr ");
+  fmt::print(fg(fmt::color::steel_blue) | fmt::emphasis::bold, "host");
+  fmt::print(" : Set the hostname of the actual turn relay server "
 	     "(default {})\n", def::TURN_PORT);
+
+  fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold, "--websocket-port ");
+  fmt::print(fg(fmt::color::steel_blue) | fmt::emphasis::bold, "PORT");
+  fmt::print(" : Set the port of the websocket server "
+	     "(default {})\n", def::WEBSOCKET_PORT);
 
   fmt::print("\n");
 }
@@ -50,6 +64,8 @@ enum OptInd : uint8_t {
   UDP_PORT,
   QUIC_PORT,
   TURN_PORT,
+  TURN_ADDR,
+  WEBSOCKET_PORT,
   HELP
 };
 
@@ -57,11 +73,15 @@ using namespace std::string_literals;
 
 int main(int argc, char *argv[])
 {
+  std::srand(time(0));
+  
   struct option long_options[] = {
     { "mode", required_argument, 0, 0 },
     { "udp-port", required_argument, 0, 0 },
     { "quic-port", required_argument, 0, 0 },
     { "turn-port", required_argument, 0, 0 },
+    { "turn-addr", required_argument, 0, 0 },
+    { "websocket-port", required_argument, 0, 0 },
     { "help", no_argument, 0, 0 },
     { 0, 0, 0, 0 },
   };
@@ -70,6 +90,8 @@ int main(int argc, char *argv[])
   int turn_port = def::TURN_PORT;
   int quic_port = def::QUIC_PORT;
   int udp_port = def::UDP_PORT;
+  int websocket_port = def::WEBSOCKET_PORT;
+  std::string turn_addr = def::TURN_HOSTNAME;
   
   while(true) {
     int option_index = 0;
@@ -85,7 +107,7 @@ int main(int argc, char *argv[])
     
     switch(option_index) {
     case OptInd::MODE:
-      if(optarg != "client"s && optarg != "server"s) {
+      if((optarg != "client"s && optarg != "server"s) && optarg != "websocket"s) {
 	fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "error : ");
 	fmt::print("{} is not a valid mode. Accepted mode are ", optarg);
 	fmt::print(fmt::emphasis::italic, "client");
@@ -96,6 +118,7 @@ int main(int argc, char *argv[])
       break;
     case OptInd::UDP_PORT: udp_port = std::stoi(optarg);   break;
     case OptInd::TURN_PORT: turn_port = std::stoi(optarg); break;
+    case OptInd::TURN_ADDR: turn_addr = optarg; break;
     case OptInd::QUIC_PORT: quic_port = std::stoi(optarg); break;
     case OptInd::HELP: display_help(); std::exit(0);
     }    
@@ -108,9 +131,18 @@ int main(int argc, char *argv[])
     return -1;
   }
 
-  if(*mode == "client") run_client(udp_port, quic_port);
-  else run_quic_server(def::TURN_HOSTNAME, turn_port, quic_port);
+  if(*mode == "client") {
+    MvfstInClient qclient(0, "127.0.0.1", quic_port);
+    qclient.allocate_in_port();
+    qclient.run();
+  }
+  else if(*mode == "server") run_quic_server(turn_addr.c_str(), turn_port, quic_port);
+  else if(*mode == "websocket") {    
+    WebsocketServer ws;
+    ws.run(websocket_port);
+  }
   
   return 0;
 }
+
 

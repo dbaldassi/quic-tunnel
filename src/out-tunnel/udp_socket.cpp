@@ -11,14 +11,15 @@ UdpSocket::UdpSocket(const char* hostname, int port) : _port(port), _socket(-1),
 {
   memset((char *)&_addr, 0, sizeof(_addr));
 
-  _addr.sin_family = AF_INET;
-  _addr.sin_port   = htons(_port);
-
   _host = gethostbyname(hostname);
   if(!_host) perror("Could not get host by name");
   else _socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     
   if(_socket == -1) perror("Could not create UDP socket");
+  
+  _addr.sin_family = AF_INET;
+  _addr.sin_port   = htons(_port);
+  memcpy(&_addr.sin_addr, _host->h_addr_list[0], _host->h_length);
 }
 
 void UdpSocket::start()

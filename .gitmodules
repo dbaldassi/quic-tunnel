@@ -1,0 +1,9 @@
+[submodule "external/websocketpp"]
+	path = external/websocketpp
+	url = git@github.com:zaphoyd/websocketpp.git
+[submodule "external/nlohmann_json"]
+	path = external/nlohmann_json
+	url = git@github.com:nlohmann/json.git
+[submodule "external/asio"]
+	path = external/asio
+	url = git@github.com:chriskohlhoff/asio.git

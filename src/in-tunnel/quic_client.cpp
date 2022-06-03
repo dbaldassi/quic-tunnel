@@ -5,10 +5,9 @@
 
 #include "quic_client.h"
 
-QuicClient::QuicClient(std::string host, uint16_t port, std::string qlog_path) noexcept
+QuicClient::QuicClient(std::string_view host, uint16_t port, std::string qlog_path) noexcept
   : _qlog_path(std::move(qlog_path)),
-    _host(std::move(host)),
-    _port(port),
+    _addr(host.data(), port),
     _network_thread("QuicTransportThread")
 {
 }
@@ -17,8 +16,7 @@ void QuicClient::start()
 {
   auto evb = _network_thread.getEventBase();
 
-  folly::SocketAddress addr(_host.c_str(), _port);
-  evb->runInEventBaseThreadAndWait([&]() {
+  evb->runInEventBaseThreadAndWait([this, &evb]() {
     auto sock = std::make_unique<folly::AsyncUDPSocket>(evb);
     auto fizz_client_context = quic::FizzClientQuicHandshakeContext::Builder()
       .setCertificateVerifier(quic::test::createTestCertificateVerifier())
@@ -29,7 +27,7 @@ void QuicClient::start()
 								  std::move(fizz_client_context));
 
     _quic_transport->setHostname("echo.com");
-    _quic_transport->addNewPeerAddress(addr);
+    _quic_transport->addNewPeerAddress(_addr);
     _quic_transport->setDatagramCallback(this);
 
     quic::TransportSettings settings;
@@ -46,16 +44,29 @@ void QuicClient::start()
     /*auto state = _quic_transport->getState();
       state->datagramState.maxWriteFrameSize = 2048;*/
 
-    LOG(INFO) << "In quic tunnel connection to :" << addr.describe();
+    LOG(INFO) << "In quic tunnel connection to :" << _addr.describe();
     _quic_transport->start(this, this);
   });
   
   _start_done.wait();
+
+  auto dcid = _quic_transport->getClientChosenDestConnectionId();
+  if(dcid.hasValue()) _qlog_file_name = dcid.value().hex() + quic::FileQLogger::kQlogExtension;
   
   evb->runInEventBaseThread([this]() {
     _stream_id = _quic_transport->createBidirectionalStream().value();
     _quic_transport->setReadCallback(_stream_id, this);
   });
+}
+
+void QuicClient::stop()
+{
+  auto evb = _network_thread.getEventBase();
+
+  evb->runInEventBaseThreadAndWait([this, &evb]() {
+				 _quic_transport->closeTransport();
+				 _quic_transport = nullptr;
+			       });
 }
 
 void QuicClient::send_message(quic::StreamId id, quic::BufQueue& data)
@@ -211,6 +222,7 @@ void QuicClient::onDatagramsAvailable() noexcept
 
   for(const auto& dg : res.value()) {
     auto copy = dg.bufQueue().front()->cloneCoalesced();
+    
     if(_on_received_callback) _on_received_callback((const char *)copy->data(), copy->length());
   }
 }

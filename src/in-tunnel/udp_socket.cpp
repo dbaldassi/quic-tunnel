@@ -2,15 +2,26 @@
 #include <iostream>
 
 #include <string.h>
+#include <sys/time.h>
 
 #include "udp_socket.h"
 
 namespace in
 {
 
-UdpSocket::UdpSocket(int port) noexcept : _port(port), _socket(-1)
+UdpSocket::UdpSocket() noexcept : _socket(-1)
+{}
+
+void UdpSocket::open(int port)
 {
+  _port = port;
+  
   _socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+  struct timeval optval;
+  optval.tv_sec = 5; // 5 seconds timeout
+  
+  // setsockopt(_socket, SOL_SOCKET, SO_RCVTIMEO, &optval, sizeof(optval));
   
   struct sockaddr_in addr;
   
@@ -34,28 +45,46 @@ ssize_t UdpSocket::recv() noexcept
   if(_socket == -1) return -1;
   
   struct sockaddr_in addr;
-  socklen_t          slen;
+  socklen_t          slen = sizeof(addr);
+  ssize_t rec_len;
   
-  auto rec_len = recvfrom(_socket, _buf, MAX_BUF_LEN, 0, (struct sockaddr*)&addr, &slen);
+  do {
+    rec_len = recvfrom(_socket, _buf, MAX_BUF_LEN, 0, (struct sockaddr*)&addr, &slen);
 
-  _addr_other     = addr;
+    if(rec_len == -1) {
+      if(errno == EAGAIN || errno == EWOULDBLOCK) {
+	if(_socket == -1) {
+	  puts("Closing UDP socket");
+	  return -1;
+	}
+	else continue;
+      }
+      else {
+	perror("Could not receive data in UDP socket");
+	return -1;
+      }
+    }
+  } while(rec_len < 0);
+
+  // _addr_other = addr;
+  _addr_other.sin_family = AF_INET;
+  _addr_other.sin_port = addr.sin_port;
+  _addr_other.sin_addr.s_addr = addr.sin_addr.s_addr;
   _addr_other_len = slen;
 
-  if(rec_len == -1) perror("Could not receive data in UDP socket");
-  
   return rec_len;
 }
 
 bool UdpSocket::send_back(const char * buf, size_t len)
 {
   if(_socket == -1) return false;
-  
+
   auto send_len = sendto(_socket, buf, len, 0, (struct sockaddr *)&_addr_other, _addr_other_len);
   if(send_len == -1) {
     perror("Could not send back");
     return false;
   }
-
+  
   return true;
 }
 

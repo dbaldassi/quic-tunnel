@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <mutex>
 
 namespace in
 {
@@ -22,8 +23,10 @@ class UdpSocket
   socklen_t          _addr_other_len;
   
 public:  
-  explicit UdpSocket(int port) noexcept;
+  UdpSocket() noexcept;
   ~UdpSocket() noexcept;
+
+  void open(int port);
   
   ssize_t recv() noexcept;
   const char* get_buffer() const noexcept { return _buf; }

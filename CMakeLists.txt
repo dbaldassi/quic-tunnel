@@ -6,22 +6,41 @@ set( CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" )
 
 find_package( mvfst REQUIRED )
 
-add_executable( quic-tunnel
-  in-tunnel/quic_client.cpp
-  in-tunnel/udp_socket.cpp
-  in-tunnel/intunnel.cpp
-  
-  out-tunnel/callback_handler.cpp
-  out-tunnel/quic_server.cpp
-  out-tunnel/udp_socket.cpp
-  out-tunnel/outtunnel.cpp
+# --- ASIO
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/external/asio/asio/include )
+# --- websocketpp
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/external/websocketpp )
+# --- JSON
+set( JSON_BuildTests      OFF CACHE INTERNAL "" )
+set( JSON_Install         OFF CACHE INTERNAL "" )
+set( JSON_MultipleHeaders ON  CACHE INTERNAL "" )
+add_subdirectory( external/nlohmann_json )
 
-  main.cpp
+add_executable( quic-tunnel
+  src/in-tunnel/quic_client.cpp
+  src/in-tunnel/udp_socket.cpp
+  src/in-tunnel/intunnel.cpp
+  
+  src/out-tunnel/callback_handler.cpp
+  src/out-tunnel/quic_server.cpp
+  src/out-tunnel/udp_socket.cpp
+  src/out-tunnel/outtunnel.cpp
+
+  src/controls/websocket_server.cpp
+  src/controls/json_parser.cpp
+  src/controls/commands.cpp
+  src/controls/response.cpp
+  src/controls/concurrent_queue.h
+  
+  src/main.cpp
   )
 
 set_target_properties( quic-tunnel PROPERTIES CXX_STANDARD 20 )
 
+target_include_directories( quic-tunnel PRIVATE ${CMAKE_SOURCE_DIR}/src )
+
 target_link_libraries( quic-tunnel PRIVATE
+  nlohmann_json
   mvfst::mvfst_constants
   mvfst::mvfst_exception
   mvfst::mvfst_transport

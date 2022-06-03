@@ -32,29 +32,35 @@ class QuicClient : public quic::QuicSocket::ConnectionSetupCallback,
 		   public quic::QuicSocket::WriteCallback,
 		   public quic::QuicSocket::DatagramCallback
 {
-  static constexpr const char * DEFAULT_QLOG_PATH = ".";
+  static constexpr const char * DEFAULT_QLOG_PATH = "tunnel-in-logs";
   
   std::string _qlog_path;
-  std::string _host;
-  uint16_t    _port;
+  std::string _qlog_file_name;
+  folly::SocketAddress _addr;
   
   std::shared_ptr<quic::QuicClientTransport> _quic_transport;
   std::map<quic::StreamId, quic::BufQueue>   _pending_output;
   std::map<quic::StreamId, uint64_t>         _recv_offsets;
   folly::fibers::Baton                       _start_done;
   quic::StreamId                             _stream_id;
-  std::function<void(const char*, size_t)>    _on_received_callback;
+  std::function<void(const char*, size_t)>   _on_received_callback;
   
   folly::ScopedEventBaseThread _network_thread;
   
   void send_message(quic::StreamId id, quic::BufQueue& data);
 
 public:
-  explicit QuicClient(std::string host,
-		      uint16_t port,
-		      std::string qlog_path=DEFAULT_QLOG_PATH) noexcept;
+  QuicClient(std::string_view host,
+	     uint16_t port,
+	     std::string qlog_path=DEFAULT_QLOG_PATH) noexcept;
 
+  ~QuicClient() = default;
+
+  std::string_view get_qlog_path() const noexcept { return _qlog_path; }
+  std::string_view get_qlog_filename() const noexcept { return _qlog_file_name; }
+  
   void start();
+  void stop();
   void send_message_stream(const char * buffer, size_t len);
   void send_message_datagram(const char * buffer, size_t len);
 
