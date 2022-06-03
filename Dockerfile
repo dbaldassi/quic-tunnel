@@ -1,26 +1,4 @@
-FROM debian:bullseye
-
-RUN apt-get update && apt-get install -y \
-    build-essential           \
-    g++                       \
-    cmake                     \
-    m4                        \
-    libboost-all-dev          \
-    libevent-dev              \
-    libdouble-conversion-dev  \
-    libgoogle-glog-dev        \
-    libgflags-dev             \
-    libiberty-dev             \
-    liblz4-dev                \
-    liblzma-dev               \
-    libsnappy-dev             \
-    make                      \
-    zlib1g-dev                \
-    binutils-dev              \
-    libjemalloc-dev           \
-    libssl-dev                \
-    pkg-config                \
-    libsodium-dev
+FROM sharkalash/quic-tunnel-env
 
 WORKDIR /root
 
@@ -28,21 +6,26 @@ RUN mkdir quic-forwarding
 
 WORKDIR quic-forwarding
 
-COPY . .
+COPY external external
+COPY src src
+COPY cmake cmake
+COPY CMakeLists.txt CMakeLists.txt
 
 RUN mkdir build
 
 WORKDIR build
 
-ENV CC "/root/quic-forwarding/gcc-12/bin/gcc"
-ENV CXX "/root/quic-forwarding/gcc-12/bin/g++"
-ENV LD_LIBRARY_PATH "/root/quic-forwarding/gcc-12/lib/../lib64"
+ENV CC "/opt/gcc-12/bin/gcc"
+ENV CXX "/opt/gcc-12/bin/g++"
+ENV LD_LIBRARY_PATH "/opt/gcc-12/lib/../lib64"
+
+RUN ls /opt
 
 RUN cmake .. \
-    -Dmvfst_DIR=mvfst/lib/cmake/mvfst \
-    -Dfolly_DIR=mvfst/lib/cmake/folly \
-    -DFizz_DIR=mvfst/lib/cmake/fizz   \
-    -Dfmt_DIR=mvfst/lib/cmake/fmt
+    -Dmvfst_DIR=/opt/mvfst/lib/cmake/mvfst \
+    -Dfolly_DIR=/opt/mvfst/lib/cmake/folly \
+    -DFizz_DIR=/opt/mvfst/lib/cmake/fizz   \
+    -Dfmt_DIR=/opt/mvfst/lib/cmake/fmt
 
 RUN make
 
