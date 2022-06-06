@@ -46,6 +46,8 @@ class QuicClient : public quic::QuicSocket::ConnectionSetupCallback,
   std::function<void(const char*, size_t)>   _on_received_callback;
   
   folly::ScopedEventBaseThread _network_thread;
+
+  quic::CongestionControlType _cc;
   
   void send_message(quic::StreamId id, quic::BufQueue& data);
 
@@ -58,7 +60,8 @@ public:
 
   std::string_view get_qlog_path() const noexcept { return _qlog_path; }
   std::string_view get_qlog_filename() const noexcept { return _qlog_file_name; }
-  
+
+  void set_cc(quic::CongestionControlType cc) noexcept { _cc = cc; }
   void start();
   void stop();
   void send_message_stream(const char * buffer, size_t len);

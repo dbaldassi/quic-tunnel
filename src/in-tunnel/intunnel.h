@@ -52,6 +52,7 @@ class MvfstInClient
   int _in_port;
   std::unique_ptr<QuicClient> _quic_client;
   in::UdpSocket _udp_socket;
+  bool _datagrams;
 
   static RandomGenerator _random_generator;
 public:

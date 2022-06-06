@@ -29,20 +29,18 @@ void QuicClient::start()
     _quic_transport->setHostname("echo.com");
     _quic_transport->addNewPeerAddress(_addr);
     _quic_transport->setDatagramCallback(this);
+    _quic_transport->setCongestionControllerFactory(std::make_shared<quic::DefaultCongestionControllerFactory>());
 
     quic::TransportSettings settings;
     // enable datagram
     settings.datagramConfig.enabled      = true;
     settings.datagramConfig.readBufSize  = 2048;
     settings.datagramConfig.writeBufSize = 2048;
-    // settings.datagramConfig.framePerPacket = 12;
+    settings.defaultCongestionController = _cc;
     
     _quic_transport->setTransportSettings(settings);
     _quic_transport->setTransportStatsCallback(std::make_shared<quic::samples::LogQuicStats>("client"));
     _quic_transport->setQLogger(QLog::create(_qlog_path));
-
-    /*auto state = _quic_transport->getState();
-      state->datagramState.maxWriteFrameSize = 2048;*/
 
     LOG(INFO) << "In quic tunnel connection to :" << _addr.describe();
     _quic_transport->start(this, this);
@@ -81,7 +79,6 @@ void QuicClient::send_message(quic::StreamId id, quic::BufQueue& data)
 void QuicClient::send_message_stream(const char * buffer, size_t len)
 {
   std::string m{buffer, len};
-  // LOG(INFO) << "Send message";
   auto evb = _network_thread.getEventBase();
 
   evb->runInEventBaseThread([this, msg=std::move(m)]() {
@@ -97,7 +94,6 @@ void QuicClient::send_message_stream(const char * buffer, size_t len)
 void QuicClient::send_message_datagram(const char * buffer, size_t len)
 {
   std::string m{buffer, len};
-  // LOG(INFO) << "Send message";
   auto evb = _network_thread.getEventBase();
 
   evb->runInEventBaseThread([this, msg = std::move(m)]() {

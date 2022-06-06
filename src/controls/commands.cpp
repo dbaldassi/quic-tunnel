@@ -23,7 +23,11 @@ std::unique_ptr<response::Response> StartClient::run()
 
     return resp;
   }
-    
+
+  // Set the cc
+  client->set_cc(cc);
+  client->set_datagram(datagrams);
+  
   // Create websocket response
   auto resp = std::make_unique<response::StartClient>();
   

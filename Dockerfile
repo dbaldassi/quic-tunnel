@@ -21,7 +21,7 @@ ENV LD_LIBRARY_PATH "/opt/gcc-12/lib/../lib64"
 
 RUN ls /opt
 
-RUN cmake .. \
+RUN cmake .. -DCMAKE_BUILD_TYPE=Release \
     -Dmvfst_DIR=/opt/mvfst/lib/cmake/mvfst \
     -Dfolly_DIR=/opt/mvfst/lib/cmake/folly \
     -DFizz_DIR=/opt/mvfst/lib/cmake/fizz   \

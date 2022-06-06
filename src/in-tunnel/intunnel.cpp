@@ -6,6 +6,8 @@
 
 #include "quic_client.h"
 
+#include "fmt/core.h"
+
 #include <glog/logging.h>
 
 std::unordered_map<int, std::shared_ptr<MvfstInClient>> MvfstInClient::sessions;
@@ -34,7 +36,7 @@ RandomGenerator MvfstInClient::_random_generator = random_sequence();
 // Mvfstclient ////////////////////////////////////////////////////////////////
 
 MvfstInClient::MvfstInClient(int id, std::string_view server_addr, uint16_t server_port)
-  : _id(id), _quic_client(new QuicClient(server_addr, server_port))
+  : _id(id), _quic_client(new QuicClient(server_addr, server_port)), _datagrams(true)
 {}
 
 MvfstInClient::~MvfstInClient() noexcept
@@ -56,18 +58,25 @@ void MvfstInClient::run()
 
     const char * buffer = _udp_socket.get_buffer();
     
-    _quic_client->send_message_stream(buffer, len);
+    if(_datagrams) _quic_client->send_message_datagram(buffer, len);
+    else _quic_client->send_message_stream(buffer, len);
   }
 }
 
 void MvfstInClient::set_cc(std::string_view cc)
 {
+  fmt::print("Set {} congestion controller\n", cc);
   
+  if(cc == "newreno")    _quic_client->set_cc(quic::CongestionControlType::NewReno);
+  else if(cc == "cubic") _quic_client->set_cc(quic::CongestionControlType::Cubic);
+  else if(cc == "copa")  _quic_client->set_cc(quic::CongestionControlType::Copa);
+  else if(cc == "bbr")   _quic_client->set_cc(quic::CongestionControlType::BBR);
+  else                   _quic_client->set_cc(quic::CongestionControlType::None);
 }
 
 void MvfstInClient::set_datagram(bool enable)
 {
-
+  _datagrams = enable;
 }
 
 int MvfstInClient::allocate_in_port()

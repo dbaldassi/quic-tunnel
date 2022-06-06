@@ -34,8 +34,8 @@ class StartClient : public Command
 {
 public:
   bool datagrams = true;
-  std::string cc = "BBR";
-  std::string impl = "mvfst";
+  std::string cc = "bbr";
+  std::string impl = "mvfst"; // TODO
 
   ResponsePtr run() override;
 };
