@@ -51,6 +51,21 @@ public:
   ResponsePtr run() override;
 };
 
+// Link ///////////////////////////////////////////////////////////////////////
+
+class Link : public Command
+{
+public:
+  int bitrate; // max bitrate in kbps
+  int delay = 1; // one way delay / propagation delay in ms
+  int burst = 20; // burst in kb
+  int latency = 400; // queing latency in ms
+
+  bool reset = false; // if reset has been requested
+
+  ResponsePtr run() override;
+};
+
 }
 
 #endif /* COMMANDS_H */

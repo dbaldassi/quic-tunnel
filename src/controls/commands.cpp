@@ -2,6 +2,7 @@
 
 #include "commands.h"
 #include "response.h"
+#include "link.h"
 
 #include "in-tunnel/intunnel.h"
 
@@ -69,6 +70,31 @@ ResponsePtr StopClient::run()
   resp->message = "Specified quic session id does not exist";
   
   return std::move(resp);
+}
+
+// Link ///////////////////////////////////////////////////////////////////////
+ResponsePtr Link::run()
+{
+  bool success = true;
+
+  if(reset) {
+    tc::Link::reset_limit();
+  }
+  else {
+    success = tc::Link::set_limit(std::chrono::milliseconds(delay), bit::KiloBits(bitrate));
+  }
+
+  if(!success) {
+    auto resp = std::make_unique<response::Error>();
+    resp->trans_id = _trans_id;
+    resp->message = "Could not set link limit";
+    return resp;
+  }
+  
+  auto resp = std::make_unique<response::Link>();
+  resp->trans_id = _trans_id;
+  
+  return resp;
 }
 
 }

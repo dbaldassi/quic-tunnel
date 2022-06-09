@@ -28,6 +28,7 @@ private:
 
   CommandPtr parse_start_client(const nlohmann::json& data);
   CommandPtr parse_stop_client(const nlohmann::json& data);
+  CommandPtr parse_link(const nlohmann::json& data);
   
 public:				    
   JsonParser() noexcept;

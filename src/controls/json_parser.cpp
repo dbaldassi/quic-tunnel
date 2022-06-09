@@ -13,6 +13,7 @@ JsonParser::JsonParser() noexcept
 {
   _request.emplace("startclient", [this](const json& d) { return parse_start_client(d); });
   _request.emplace("stopclient", [this](const json& d) { return parse_stop_client(d); });
+  _request.emplace("link", [this](const json& d) { return parse_link(d); });
 }
 
 JsonParser::CommandPtr JsonParser::parse_start_client(const json& data)
@@ -42,6 +43,22 @@ JsonParser::CommandPtr JsonParser::parse_stop_client(const json& data)
   }
 
   return nullptr;
+}
+
+JsonParser::CommandPtr JsonParser::parse_link(const json& data)
+{
+  auto cmd = std::make_unique<cmd::Link>();
+  
+  if(auto delay = data.find("delay"); delay != data.end()) {
+    cmd->delay = delay->get<int>();
+  }
+
+  if(auto bitrate = data.find("bitrate"); bitrate != data.end()) {
+    cmd->bitrate = bitrate->get<int>();
+  }
+  else cmd->reset = true;
+
+  return cmd;
 }
 
 JsonParser::CommandPtr JsonParser::parse_request(const nlohmann::json &request)

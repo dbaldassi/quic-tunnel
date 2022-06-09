@@ -10,6 +10,7 @@
 
 #include "out-tunnel/outtunnel.h"
 #include "controls/websocket_server.h"
+#include "controls/link.h"
 
 namespace def
 {
@@ -19,6 +20,7 @@ constexpr auto TURN_PORT = 3478;
 constexpr auto QUIC_PORT = 8888;
 constexpr auto WEBSOCKET_PORT = 3333;
 constexpr const char * TURN_HOSTNAME = "turn.dabaldassi.fr";
+constexpr const char * IF_NAME = "eth0";
 
 }
 
@@ -66,6 +68,7 @@ enum OptInd : uint8_t {
   TURN_PORT,
   TURN_ADDR,
   WEBSOCKET_PORT,
+  IF_NAME,
   HELP
 };
 
@@ -74,7 +77,7 @@ using namespace std::string_literals;
 int main(int argc, char *argv[])
 {
   std::srand(time(0));
-  
+
   struct option long_options[] = {
     { "mode", required_argument, 0, 0 },
     { "udp-port", required_argument, 0, 0 },
@@ -82,15 +85,17 @@ int main(int argc, char *argv[])
     { "turn-port", required_argument, 0, 0 },
     { "turn-addr", required_argument, 0, 0 },
     { "websocket-port", required_argument, 0, 0 },
+    { "if_name", required_argument, 0, 0 },
     { "help", no_argument, 0, 0 },
     { 0, 0, 0, 0 },
   };
 
   std::optional<std::string> mode;
-  int turn_port = def::TURN_PORT;
-  int quic_port = def::QUIC_PORT;
-  int udp_port = def::UDP_PORT;
-  int websocket_port = def::WEBSOCKET_PORT;
+  int turn_port         = def::TURN_PORT;
+  int quic_port         = def::QUIC_PORT;
+  int udp_port          = def::UDP_PORT;
+  int websocket_port    = def::WEBSOCKET_PORT;
+  std::string if_name   = def::IF_NAME;
   std::string turn_addr = def::TURN_HOSTNAME;
   
   while(true) {
@@ -118,7 +123,9 @@ int main(int argc, char *argv[])
       break;
     case OptInd::UDP_PORT: udp_port = std::stoi(optarg);   break;
     case OptInd::TURN_PORT: turn_port = std::stoi(optarg); break;
+    case OptInd::WEBSOCKET_PORT: websocket_port = std::stoi(optarg); break;
     case OptInd::TURN_ADDR: turn_addr = optarg; break;
+    case OptInd::IF_NAME: if_name = optarg; break;
     case OptInd::QUIC_PORT: quic_port = std::stoi(optarg); break;
     case OptInd::HELP: display_help(); std::exit(0);
     }    
@@ -137,10 +144,15 @@ int main(int argc, char *argv[])
     qclient.run();
   }
   else if(*mode == "server") run_quic_server(turn_addr.c_str(), turn_port, quic_port);
-  else if(*mode == "websocket") {    
+  else if(*mode == "websocket") {  
+    // init tc
+    tc::Link::init(if_name.c_str());
+  
     WebsocketServer ws;
     ws.run(websocket_port);
   }
+
+  tc::Link::exit();
   
   return 0;
 }

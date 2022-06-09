@@ -30,6 +30,7 @@ add_executable( quic-tunnel
   src/controls/json_parser.cpp
   src/controls/commands.cpp
   src/controls/response.cpp
+  src/controls/link.cpp
   src/controls/concurrent_queue.h
   
   src/main.cpp
@@ -37,10 +38,17 @@ add_executable( quic-tunnel
 
 set_target_properties( quic-tunnel PROPERTIES CXX_STANDARD 20 )
 
-target_include_directories( quic-tunnel PRIVATE ${CMAKE_SOURCE_DIR}/src )
+target_include_directories( quic-tunnel PRIVATE
+  ${CMAKE_SOURCE_DIR}/src
+  /usr/include/libnl3
+  )
 
 target_link_libraries( quic-tunnel PRIVATE
+  nl-3
+  nl-route-3
+
   nlohmann_json
+  
   mvfst::mvfst_constants
   mvfst::mvfst_exception
   mvfst::mvfst_transport
