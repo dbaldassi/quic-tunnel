@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "udp_socket.h"
-
+#include <iostream>
 namespace out
 {
 
@@ -11,6 +11,8 @@ UdpSocket::UdpSocket(const char* hostname, int port) : _port(port), _socket(-1),
 {
   memset((char *)&_addr, 0, sizeof(_addr));
 
+  std::cout << hostname << "\n";
+  
   _host = gethostbyname(hostname);
   if(!_host) perror("Could not get host by name");
   else _socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);

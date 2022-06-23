@@ -5,6 +5,7 @@
 #include "link.h"
 
 #include "in-tunnel/intunnel.h"
+#include "out-tunnel/outtunnel.h"
 
 namespace cmd
 {
@@ -60,6 +61,63 @@ ResponsePtr StopClient::run()
     resp->url = "https://qvis.dabaldassi.fr?file=" + client->get_qlog_file();
 
     client = nullptr;
+
+    return resp;
+  }
+
+  // Does not exist, return an error
+  auto resp = std::make_unique<response::Error>();
+  resp->trans_id = _trans_id;
+  resp->message = "Specified quic session id does not exist";
+  
+  return std::move(resp);
+}
+
+// StartServer ////////////////////////////////////////////////////////////////
+
+ResponsePtr StartServer::run()
+{
+  // Create quic client
+  auto server = ::MvfstOutClient::create(addr, 8888, port);
+
+  // Ensure it is created
+  if(server == nullptr) {
+    auto resp = std::make_unique<response::Error>();
+    resp->trans_id = _trans_id;
+    resp->message = "Internal error, could not create quic session";
+
+    return resp;
+  }
+
+  // Create websocket response
+  auto resp = std::make_unique<response::StartServer>();
+  
+  // Fill websocket response
+  resp->trans_id = _trans_id;
+  resp->id = server->id();
+
+  // Run the client in a detached thread
+  std::thread([server]() -> void { server->run(); }).detach();
+
+  // return response
+  return resp;
+}
+
+// StopServer /////////////////////////////////////////////////////////////////
+
+ResponsePtr StopServer::run()
+{
+  // Check if the specified id exists
+  if(MvfstOutClient::sessions.contains(id)) {
+    auto server = MvfstOutClient::sessions[id];
+    MvfstOutClient::sessions.erase(id);
+
+    server->stop();
+
+    auto resp = std::make_unique<response::StopServer>();
+    resp->trans_id = _trans_id;
+
+    server = nullptr;
 
     return resp;
   }

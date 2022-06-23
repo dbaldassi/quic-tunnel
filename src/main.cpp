@@ -143,16 +143,19 @@ int main(int argc, char *argv[])
     qclient.allocate_in_port();
     qclient.run();
   }
-  else if(*mode == "server") run_quic_server(turn_addr.c_str(), turn_port, quic_port);
+  else if(*mode == "server") {
+    MvfstOutClient qserver(0, turn_addr, quic_port, turn_port);
+    qserver.run();
+  }
   else if(*mode == "websocket") {  
     // init tc
     tc::Link::init(if_name.c_str());
   
     WebsocketServer ws;
     ws.run(websocket_port);
-  }
 
-  tc::Link::exit();
+    tc::Link::exit();
+  }
   
   return 0;
 }

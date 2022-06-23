@@ -41,6 +41,18 @@ struct StopClient : public Response
   nlohmann::json data() const override;
 };
 
+struct StartServer : public Response
+{
+  int id;
+
+  nlohmann::json data() const override;
+};
+
+struct StopServer : public Response
+{  
+  nlohmann::json data() const override;
+};
+
 struct Capabilities : public Response
 {
   std::string impl_name;

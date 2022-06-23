@@ -14,7 +14,7 @@ std::unordered_map<int, std::shared_ptr<MvfstInClient>> MvfstInClient::sessions;
 
 // Random Number generation ///////////////////////////////////////////////////
 
-RandomGenerator random_sequence()
+static RandomGenerator random_sequence()
 {
   std::random_device r;
 

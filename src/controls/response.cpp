@@ -33,6 +33,16 @@ nlohmann::json StopClient::data() const
   return json{ { "url", url } };
 }
 
+nlohmann::json StartServer::data() const
+{
+  return json{ { "id", id }};
+}
+
+nlohmann::json StopServer::data() const
+{
+  return json{};
+}
+
 nlohmann::json Capabilities::data() const
 {
   json d = {

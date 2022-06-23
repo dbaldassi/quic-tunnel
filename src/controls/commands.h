@@ -51,6 +51,30 @@ public:
   ResponsePtr run() override;
 };
 
+// StartServer ////////////////////////////////////////////////////////////////
+
+class StartServer : public Command
+{
+public:
+  int port;
+  std::string addr;
+  std::string impl = "mvfst"; // TODO
+
+  ResponsePtr run() override;
+};
+
+// StopServer /////////////////////////////////////////////////////////////////
+
+class StopServer : public Command
+{
+
+public:
+  int id; // Id of the quic session
+  
+  ResponsePtr run() override;
+};
+
+
 // Link ///////////////////////////////////////////////////////////////////////
 
 class Link : public Command

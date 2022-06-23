@@ -1,5 +1,5 @@
-#ifndef UDP_SOCKET_H
-#define UDP_SOCKET_H
+#ifndef UDP_OUT_SOCKET_H
+#define UDP_OUT_SOCKET_H
 
 #include <thread>
 
