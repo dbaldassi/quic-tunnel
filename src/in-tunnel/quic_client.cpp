@@ -37,6 +37,8 @@ void QuicClient::start()
     settings.datagramConfig.readBufSize  = 2048;
     settings.datagramConfig.writeBufSize = 2048;
     settings.defaultCongestionController = _cc;
+    settings.maxRecvPacketSize = 4096;
+    settings.canIgnorePathMTU = true;
     
     _quic_transport->setTransportSettings(settings);
     _quic_transport->setTransportStatsCallback(std::make_shared<quic::samples::LogQuicStats>("client"));
@@ -158,13 +160,13 @@ void QuicClient::onNewBidirectionalStream(quic::StreamId id) noexcept
 
 void QuicClient::onNewUnidirectionalStream(quic::StreamId id) noexcept
 {
-  LOG(INFO) << "In Quic tunnel: new unidirectional stream=" << id;
+  // LOG(INFO) << "In Quic tunnel: new unidirectional stream=" << id;
   _quic_transport->setReadCallback(id, this);
 }
 
 void QuicClient::onStopSending(quic::StreamId id, quic::ApplicationErrorCode) noexcept
 {
-  VLOG(10) << "In Quic tunnel got StopSending stream id=" << id;
+  LOG(INFO) << "In Quic tunnel got StopSending stream id=" << id;  
 }
 
 void QuicClient::onConnectionEnd() noexcept
@@ -228,21 +230,30 @@ void QuicClient::readAvailable(quic::StreamId id) noexcept
 {
   constexpr auto MAX_LEN = 0;
   auto data = _quic_transport->read(id, MAX_LEN);
+  
   if(data.hasError()) {
     LOG(ERROR) << "In Quic tunnel failed read from stream=" << id
 	       << ", error=" << (uint32_t)data.error();
   }
 
   auto copy = data->first->clone();
-  if(auto it = _recv_offsets.find(id); it == _recv_offsets.end()) {
-    _recv_offsets[id] = copy->length();
+  auto eof  = data->second;
+  // LOG(INFO) << "received data(" << copy->length() << ") from: " << id;
+  
+  if(auto it = _recv_msg.find(id); it == _recv_msg.end()) {
+    _recv_msg[id] = copy->moveToFbString().toStdString();
   }
   else {
-    it->second += copy->length();
+    it->second += copy->moveToFbString().toStdString();
   }
 
-  // LOG(INFO) << "Message received : " << copy->moveToFbString().toStdString();
-  if(_on_received_callback) _on_received_callback((const char *)copy->data(), copy->length());
+  // End of the stream
+  // TODO: check why onStopSending is never called
+  if(eof) {
+    LOG(INFO) << "Got eof";
+    if(_on_received_callback) _on_received_callback(_recv_msg[id].c_str(), _recv_msg[id].size());
+    _recv_msg.erase(id);
+  }
 }
 
 void QuicClient::readError(quic::StreamId id, quic::QuicError error) noexcept

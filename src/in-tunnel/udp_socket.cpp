@@ -21,7 +21,7 @@ void UdpSocket::open(int port)
   struct timeval optval;
   optval.tv_sec = 5; // 5 seconds timeout
   
-  // setsockopt(_socket, SOL_SOCKET, SO_RCVTIMEO, &optval, sizeof(optval));
+  setsockopt(_socket, SOL_SOCKET, SO_RCVTIMEO, &optval, sizeof(optval));
   
   struct sockaddr_in addr;
   
@@ -79,6 +79,7 @@ bool UdpSocket::send_back(const char * buf, size_t len)
 {
   if(_socket == -1) return false;
 
+  // puts("Sendign back some good data");
   auto send_len = sendto(_socket, buf, len, 0, (struct sockaddr *)&_addr_other, _addr_other_len);
   if(send_len == -1) {
     perror("Could not send back");

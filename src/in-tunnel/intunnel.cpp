@@ -45,6 +45,8 @@ MvfstInClient::~MvfstInClient() noexcept
 void MvfstInClient::run()
 {  
   _udp_socket.open(_in_port);
+
+  _quic_client->set_cc(quic::CongestionControlType::None);
   
   _quic_client->set_on_received_callback([this](const char* msg, size_t length) {
     _udp_socket.send_back(msg, length);
@@ -72,6 +74,8 @@ void MvfstInClient::set_cc(std::string_view cc)
   else if(cc == "copa")  _quic_client->set_cc(quic::CongestionControlType::Copa);
   else if(cc == "bbr")   _quic_client->set_cc(quic::CongestionControlType::BBR);
   else                   _quic_client->set_cc(quic::CongestionControlType::None);
+
+  _quic_client->set_cc(quic::CongestionControlType::None);
 }
 
 void MvfstInClient::set_datagram(bool enable)

@@ -41,6 +41,7 @@ class QuicClient : public quic::QuicSocket::ConnectionSetupCallback,
   std::shared_ptr<quic::QuicClientTransport> _quic_transport;
   std::map<quic::StreamId, quic::BufQueue>   _pending_output;
   std::map<quic::StreamId, uint64_t>         _recv_offsets;
+  std::map<quic::StreamId, std::string>         _recv_msg;
   folly::fibers::Baton                       _start_done;
   quic::StreamId                             _stream_id;
   std::function<void(const char*, size_t)>   _on_received_callback;

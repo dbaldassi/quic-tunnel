@@ -58,6 +58,8 @@ bool Link::init(const char * if_name)
   rtnl_tc_set_ifindex(TC_CAST(qtbf), if_index); // dev DEV
   rtnl_tc_set_parent(TC_CAST(qtbf), TC_HANDLE(1,0)); // parent 1:
   rtnl_tc_set_handle(TC_CAST(qtbf), TC_HANDLE(2,0)); // handle 2:
+  // rtnl_tc_set_parent(TC_CAST(qtbf), TC_H_ROOT); // root
+  // rtnl_tc_set_handle(TC_CAST(qtbf), TC_HANDLE(1, 0)); // handle 1:
   rtnl_tc_set_kind(TC_CAST(qtbf), "tbf"); // tbf
   
   return true;

@@ -47,7 +47,7 @@ void CallbackHandler::onNewUnidirectionalStream(quic::StreamId id) noexcept
 
 void CallbackHandler::onStopSending(quic::StreamId id, quic::ApplicationErrorCode) noexcept
 {
-  VLOG(10) << "Out Quic tunnel got StopSending stream id=" << id;
+  LOG(INFO) << "Out Quic tunnel got StopSending stream id=" << id;
 }
 
 void CallbackHandler::onConnectionEnd() noexcept
@@ -154,7 +154,8 @@ void CallbackHandler::onStreamWriteError(quic::StreamId id, quic::QuicError erro
 
 void CallbackHandler::onConnectionWriteError(quic::QuicError error) noexcept
 {
-
+  LOG(ERROR) << "Out quic tunnel write"
+	     << " error=" << toString(error);
 }
 
 // UdpSocketCallback //////////////////////////////////////////////////////////
@@ -168,11 +169,24 @@ void CallbackHandler::onUdpMessage(const char * buffer, size_t len) noexcept
     // auto id = _queue_ids.back();
     // _queue_ids.pop_back();
 
+    size_t len = msg.size();
     auto qbuf = folly::IOBuf::copyBuffer(std::move(msg));
 
-    auto res = _transport->writeDatagram(std::move(qbuf));
-    if(res.hasError()) {
-      LOG(ERROR) << "In quic tunnel write chaine error=" << uint32_t(res.error());
+    // LOG(INFO) << "len: " << len << " " << quic::kMinMaxUDPPayload;
+    if(len >= quic::kMinMaxUDPPayload) {
+      // LOG(INFO) << "len: " << len;
+      auto id = _transport->createUnidirectionalStream().value();
+      auto res = _transport->writeChain(id, std::move(qbuf), true);
+      if(res.hasError()) {
+	LOG(ERROR) << "In quic tunnel write chain error=" << uint32_t(res.error());
+      }
+    }
+    else {
+      auto res = _transport->writeDatagram(std::move(qbuf));
+      // auto res = _transport->writeChain(id, std::move(qbuf), false, nullptr);
+      if(res.hasError()) {
+	LOG(ERROR) << "In quic tunnel write dgram error=" << uint32_t(res.error());
+      }
     }
   });
 }
