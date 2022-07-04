@@ -32,6 +32,8 @@ public:
   void run();
   void stop();
 
+  void set_cc(std::string_view cc);
+
   static std::shared_ptr<MvfstOutClient> create(std::string_view server_addr,
 						uint16_t server_port,
 						uint16_t out_port);

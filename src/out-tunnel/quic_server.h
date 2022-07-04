@@ -65,11 +65,15 @@ class QuicServer
   std::unique_ptr<CallbackHandler>  _handler;
   
   out::UdpSocket * _udp_socket;
+
+  quic::CongestionControlType _cc;
   
 public:
   explicit QuicServer(const std::string& host, uint16_t port, out::UdpSocket * udp_socket);
 
   void start();
+
+  void set_cc(quic::CongestionControlType cc) noexcept { _cc = cc; }
 };
 
 #endif /* QUIC_SERVER_H */

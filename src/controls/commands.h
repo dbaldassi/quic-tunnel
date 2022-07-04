@@ -37,6 +37,9 @@ public:
   std::string cc = "bbr";
   std::string impl = "mvfst"; // TODO
 
+  int quic_port;
+  std::string quic_host;
+
   ResponsePtr run() override;
 };
 
@@ -56,8 +59,11 @@ public:
 class StartServer : public Command
 {
 public:
-  int port;
-  std::string addr;
+  int port_out;
+  int quic_port;
+  std::string cc;
+  std::string quic_host;
+  std::string addr_out;
   std::string impl = "mvfst"; // TODO
 
   ResponsePtr run() override;

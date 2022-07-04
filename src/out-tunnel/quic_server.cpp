@@ -109,6 +109,7 @@ QuicServer::QuicServer(const std::string& host, uint16_t port, out::UdpSocket * 
   settings.datagramConfig.writeBufSize = 2048;
   settings.maxRecvPacketSize = 4096;
   settings.canIgnorePathMTU = true;
+  settings.defaultCongestionController = _cc;
   
   _server->setTransportSettings(std::move(settings));
 }

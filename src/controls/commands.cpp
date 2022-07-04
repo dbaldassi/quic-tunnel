@@ -15,7 +15,7 @@ namespace cmd
 std::unique_ptr<response::Response> StartClient::run()
 {
   // Create quic client
-  auto client = ::MvfstInClient::create("127.0.0.1", 8888);
+  auto client = ::MvfstInClient::create(quic_host, quic_port);
 
   // Ensure it is created
   if(client == nullptr) {
@@ -78,8 +78,9 @@ ResponsePtr StopClient::run()
 ResponsePtr StartServer::run()
 {
   // Create quic client
-  auto server = ::MvfstOutClient::create(addr, 8888, port);
-
+  auto server = ::MvfstOutClient::create(addr_out, quic_port, port_out);
+  server->set_cc(cc);
+  
   // Ensure it is created
   if(server == nullptr) {
     auto resp = std::make_unique<response::Error>();

@@ -31,6 +31,12 @@ JsonParser::CommandPtr JsonParser::parse_start_client(const json& data)
   if(auto impl = data.find("impl"); impl != data.end()) {
     cmd->impl = impl->get<std::string>();
   }
+  if(auto port = data.find("quic_port"); port != data.end()) {
+    cmd->quic_port = port->get<int>();
+  }
+  if(auto addr = data.find("quic_host"); addr != data.end()) {
+    cmd->quic_host = addr->get<std::string>();
+  }
   
   return std::move(cmd);
 }
@@ -51,14 +57,23 @@ JsonParser::CommandPtr JsonParser::parse_start_server(const json& data)
 {
   auto cmd = std::make_unique<cmd::StartServer>();
 
-  if(auto port = data.find("port"); port != data.end()) {
-    cmd->port = port->get<int>();
+  if(auto port = data.find("port_out"); port != data.end()) {
+    cmd->port_out = port->get<int>();
   }
-  if(auto addr = data.find("addr"); addr != data.end()) {
-    cmd->addr = addr->get<std::string>();
+  if(auto addr = data.find("addr_out"); addr != data.end()) {
+    cmd->addr_out = addr->get<std::string>();
+  }
+  if(auto port = data.find("quic_port"); port != data.end()) {
+    cmd->quic_port = port->get<int>();
+  }
+  if(auto addr = data.find("quic_host"); addr != data.end()) {
+    cmd->quic_host = addr->get<std::string>();
   }
   if(auto impl = data.find("impl"); impl != data.end()) {
     cmd->impl = impl->get<std::string>();
+  }
+  if(auto cc = data.find("cc"); cc != data.end()) {
+    cmd->cc = cc->get<std::string>();
   }
   
   return std::move(cmd);

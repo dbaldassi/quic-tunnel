@@ -18,6 +18,7 @@ namespace def
 constexpr auto UDP_PORT  = 3479;
 constexpr auto TURN_PORT = 3478;
 constexpr auto QUIC_PORT = 8888;
+constexpr auto QUIC_SERVER_HOST = "127.0.0.1";
 constexpr auto WEBSOCKET_PORT = 3333;
 constexpr const char * TURN_HOSTNAME = "turn.dabaldassi.fr";
 constexpr const char * IF_NAME = "eth0";
@@ -58,6 +59,11 @@ void display_help()
   fmt::print(" : Set the port of the websocket server "
 	     "(default {})\n", def::WEBSOCKET_PORT);
 
+  fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold, "--quic-server-host ");
+  fmt::print(fg(fmt::color::steel_blue) | fmt::emphasis::bold, "host");
+  fmt::print(" : Set the host of the quic server "
+	     "(default {})\n", def::QUIC_SERVER_HOST);
+
   fmt::print("\n");
 }
 
@@ -69,6 +75,7 @@ enum OptInd : uint8_t {
   TURN_ADDR,
   WEBSOCKET_PORT,
   IF_NAME,
+  QUIC_SERVER_HOST,
   HELP
 };
 
@@ -86,6 +93,7 @@ int main(int argc, char *argv[])
     { "turn-addr", required_argument, 0, 0 },
     { "websocket-port", required_argument, 0, 0 },
     { "if_name", required_argument, 0, 0 },
+    { "quic-server-host", required_argument, 0, 0 },
     { "help", no_argument, 0, 0 },
     { 0, 0, 0, 0 },
   };
@@ -97,6 +105,7 @@ int main(int argc, char *argv[])
   int websocket_port    = def::WEBSOCKET_PORT;
   std::string if_name   = def::IF_NAME;
   std::string turn_addr = def::TURN_HOSTNAME;
+  std::string quic_server_host = def::QUIC_SERVER_HOST;
   
   while(true) {
     int option_index = 0;
@@ -126,6 +135,7 @@ int main(int argc, char *argv[])
     case OptInd::WEBSOCKET_PORT: websocket_port = std::stoi(optarg); break;
     case OptInd::TURN_ADDR: turn_addr = optarg; break;
     case OptInd::IF_NAME: if_name = optarg; break;
+    case OptInd::QUIC_SERVER_HOST: quic_server_host = optarg; break;
     case OptInd::QUIC_PORT: quic_port = std::stoi(optarg); break;
     case OptInd::HELP: display_help(); std::exit(0);
     }    
@@ -139,7 +149,7 @@ int main(int argc, char *argv[])
   }
 
   if(*mode == "client") {
-    MvfstInClient qclient(0, "127.0.0.1", quic_port);
+    MvfstInClient qclient(0, quic_server_host, quic_port);
     qclient.allocate_in_port();
     qclient.run();
   }

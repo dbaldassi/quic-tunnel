@@ -39,6 +39,7 @@ bool Link::init(const char * if_name)
   if(ret != 0) return display_tc_error("Could not alloc cache");
 
   // Retrieve the network interface
+  fmt::print("Getting link interface: {}\n", if_name);
   link = rtnl_link_get_by_name(cache, if_name);
   if(!link) return display_tc_error("Could not get link by name");
 
