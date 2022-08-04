@@ -1,3 +1,4 @@
+#include <quic/logging/FileQLogger.h>
 
 #include "callback_handler.h"
 
@@ -15,6 +16,9 @@ void CallbackHandler::onConnectionSetupError(quic::QuicError error) noexcept
 void CallbackHandler::onTransportReady() noexcept
 {
   LOG(INFO) << "onTransportReady";
+  auto dcid = _transport->getClientChosenDestConnectionId();
+  if(dcid.hasValue())
+    qlog_file = dcid.value().hex() + quic::FileQLogger::kQlogExtension;
 }
 
 void CallbackHandler::onReplaySafe() noexcept

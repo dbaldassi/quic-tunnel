@@ -23,6 +23,8 @@ class CallbackHandler : public quic::QuicSocket::ConnectionSetupCallback,
   std::deque<quic::StreamId>        _queue_ids;
   
 public:
+  std::string                       qlog_file;
+
   CallbackHandler() = default;
 
   void set_quic_socket(std::shared_ptr<quic::QuicSocket> sock) noexcept {

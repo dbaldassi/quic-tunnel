@@ -84,10 +84,6 @@ QuicOutTunnelTransportFactory::make(folly::EventBase* evb,
   
   transport->setDatagramCallback(_handler);
   transport->setQLogger(QLog<quic::VantagePoint::Server>::create(QuicServer::DEFAULT_QLOG_PATH));
-
-  auto dcid = transport->getClientChosenDestConnectionId();
-  if(dcid.hasValue())
-    _server->set_qlog_filename(dcid.value().hex() + quic::FileQLogger::kQlogExtension);
   
   return transport;
 }

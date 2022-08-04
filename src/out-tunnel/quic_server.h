@@ -86,7 +86,7 @@ public:
   void start();
 
   std::string_view get_qlog_path() const noexcept { return DEFAULT_QLOG_PATH; }
-  std::string_view get_qlog_filename() const noexcept { return _qlog_file; }
+  std::string_view get_qlog_filename() const noexcept { return _handler->qlog_file; }
   
   void set_cc(quic::CongestionControlType cc) noexcept { _cc = cc; }
   void stop();
