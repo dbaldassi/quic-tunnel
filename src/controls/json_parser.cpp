@@ -82,7 +82,7 @@ JsonParser::CommandPtr JsonParser::parse_start_server(const json& data)
 JsonParser::CommandPtr JsonParser::parse_stop_server(const json& data)
 {
   if(auto id = data.find("id"); id != data.end()) {
-    auto cmd = std::make_unique<cmd::StopClient>();
+    auto cmd = std::make_unique<cmd::StopServer>();
     cmd->id = id->get<int>();
     
     return cmd;

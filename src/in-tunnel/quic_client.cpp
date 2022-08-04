@@ -42,7 +42,7 @@ void QuicClient::start()
     
     _quic_transport->setTransportSettings(settings);
     _quic_transport->setTransportStatsCallback(std::make_shared<quic::samples::LogQuicStats>("client"));
-    _quic_transport->setQLogger(QLog::create(_qlog_path));
+    _quic_transport->setQLogger(QLog<quic::VantagePoint::Client>::create(_qlog_path));
 
     LOG(INFO) << "In quic tunnel connection to :" << _addr.describe();
     _quic_transport->start(this, this);

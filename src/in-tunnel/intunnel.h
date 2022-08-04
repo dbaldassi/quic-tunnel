@@ -20,7 +20,6 @@ class MvfstInClient
 
   static RandomGenerator _random_generator;
 public:
-
   static constexpr auto MAX_NUMBER_SESSION = 5;
   
   static std::unordered_map<int, std::shared_ptr<MvfstInClient>> sessions;

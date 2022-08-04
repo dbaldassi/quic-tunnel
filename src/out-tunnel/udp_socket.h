@@ -43,7 +43,7 @@ public:
   void set_callback(UdpSocketCallback * callback) { _callback = callback; }
 
   void start();
-  
+  void close();
   void send(const char * buf, size_t len);
   
   ~UdpSocket() noexcept;

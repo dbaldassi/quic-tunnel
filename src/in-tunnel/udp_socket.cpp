@@ -19,6 +19,7 @@ void UdpSocket::open(int port)
   _socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
   struct timeval optval;
+  optval.tv_usec = 0;
   optval.tv_sec = 5; // 5 seconds timeout
   
   setsockopt(_socket, SOL_SOCKET, SO_RCVTIMEO, &optval, sizeof(optval));
@@ -57,7 +58,7 @@ ssize_t UdpSocket::recv() noexcept
 	  puts("Closing UDP socket");
 	  return -1;
 	}
-	else continue;
+	else puts("Refreshing UDP socket");
       }
       else {
 	perror("Could not receive data in UDP socket");

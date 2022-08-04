@@ -15,6 +15,8 @@
 #include <quic/server/QuicServerTransport.h>
 #include <quic/server/QuicSharedUDPSocketFactory.h>
 
+#include "qlogfile.h"
+
 constexpr folly::StringPiece kP256Key = R"(
 -----BEGIN EC PRIVATE KEY-----
 MHcCAQEEIHMPeLV/nP/gkcgU2weiXl198mEX8RbFjPRoXuGcpxMXoAoGCCqGSM49
@@ -39,13 +41,17 @@ p9fO4UsXiDUnOgvYFDA+YtcU
 -----END CERTIFICATE-----
 )";
 
+class QuicServer;
+
 class QuicOutTunnelTransportFactory : public quic::QuicServerTransportFactory
-{
+{  
   CallbackHandler * _handler;
-public:
+  QuicServer      * _server;
+public:  
   using FizzServerCtxPtr = std::shared_ptr<const fizz::server::FizzServerContext>;
   
-  explicit QuicOutTunnelTransportFactory(CallbackHandler * hdl) noexcept : _handler(hdl) {}
+  explicit QuicOutTunnelTransportFactory(CallbackHandler * hdl, QuicServer* server) noexcept
+    : _handler(hdl), _server(server) {}
   ~QuicOutTunnelTransportFactory();
 
   quic::QuicServerTransport::Ptr make(folly::EventBase* evb,
@@ -67,13 +73,23 @@ class QuicServer
   out::UdpSocket * _udp_socket;
 
   quic::CongestionControlType _cc;
+
+  std::string _qlog_file;
   
 public:
+  static constexpr const char * DEFAULT_QLOG_PATH = "tunnel-out-logs";
+  
   explicit QuicServer(const std::string& host, uint16_t port, out::UdpSocket * udp_socket);
 
+  void set_qlog_filename(std::string file_name);
+  
   void start();
 
+  std::string_view get_qlog_path() const noexcept { return DEFAULT_QLOG_PATH; }
+  std::string_view get_qlog_filename() const noexcept { return _qlog_file; }
+  
   void set_cc(quic::CongestionControlType cc) noexcept { _cc = cc; }
+  void stop();
 };
 
 #endif /* QUIC_SERVER_H */

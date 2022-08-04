@@ -47,7 +47,15 @@ void MvfstOutClient::run()
 
 void MvfstOutClient::stop()
 {
-  // TODO
+  _quic_server->stop();
+}
+
+std::string MvfstOutClient::get_qlog_file()
+{
+  std::ostringstream oss;
+  oss << _quic_server->get_qlog_path() << "/" << _quic_server->get_qlog_filename();
+
+  return oss.str();
 }
 
 void MvfstOutClient::set_cc(std::string_view cc)

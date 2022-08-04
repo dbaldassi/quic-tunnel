@@ -30,5 +30,6 @@ RUN cmake .. -DCMAKE_BUILD_TYPE=Release \
 RUN make
 
 RUN mkdir tunnel-in-logs
+RUN mkdir tunnel-out-logs
 
 ENTRYPOINT [ "./quic-tunnel" ]

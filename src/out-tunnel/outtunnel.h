@@ -33,6 +33,7 @@ public:
   void stop();
 
   void set_cc(std::string_view cc);
+  std::string get_qlog_file();
 
   static std::shared_ptr<MvfstOutClient> create(std::string_view server_addr,
 						uint16_t server_port,

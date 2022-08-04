@@ -58,7 +58,15 @@ ResponsePtr StopClient::run()
 
     auto resp = std::make_unique<response::StopClient>();
     resp->trans_id = _trans_id;
-    resp->url = "https://qvis.dabaldassi.fr?file=" + client->get_qlog_file();
+
+    if(const char * qvis = std::getenv("QVIS_URL")) {
+      resp->url = qvis;
+    }
+    else {
+      resp->url = "https://qvis.dabaldassi.fr";
+    }
+    
+    resp->url += "?file=" + client->get_qlog_file();
 
     client = nullptr;
 
@@ -117,6 +125,15 @@ ResponsePtr StopServer::run()
 
     auto resp = std::make_unique<response::StopServer>();
     resp->trans_id = _trans_id;
+    
+    if(const char * qvis = std::getenv("QVIS_URL")) {
+      resp->url = qvis;
+    }
+    else {
+      resp->url = "https://qvis.dabaldassi.fr";
+    }
+    
+    resp->url += "?file=" + server->get_qlog_file();
 
     server = nullptr;
 

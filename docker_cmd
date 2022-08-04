@@ -1,0 +1,1 @@
+docker run -v tunnel-in-logs:/root/quic-forwarding/build/tunnel-in-logs -v tunnel-out-logs:/root/quic-forwarding/build/tunnel-out-logs -e QVIS_URL="192.168.1.47:3000" --rm --cap-add=NET_ADMIN --name out-tunnel --network host -it sharkalash/quic-tunnel --mode websocket --websocket-port=3334 --if_name enp0s31f6

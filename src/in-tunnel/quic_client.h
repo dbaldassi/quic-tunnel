@@ -9,22 +9,8 @@
 #include <quic/api/QuicSocket.h>
 #include <quic/client/QuicClientTransport.h>
 #include <quic/common/BufUtil.h>
-#include <quic/logging/FileQLogger.h>
 
-class QLog : public quic::FileQLogger
-{
-  std::string_view _path;
-public:
-
-  explicit QLog(std::string_view path) noexcept
-    : quic::FileQLogger(quic::VantagePoint::Client, "TUNNEL IN", std::string(path)),
-      _path(path)
-  {}
-
-  ~QLog() { outputLogsToFile(std::string(_path), true); }
-
-  static auto create(std::string_view path) { return std::make_shared<QLog>(path); }
-};
+#include "qlogfile.h"
 
 class QuicClient : public quic::QuicSocket::ConnectionSetupCallback,
 		   public quic::QuicSocket::ConnectionCallback,

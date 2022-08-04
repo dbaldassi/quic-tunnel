@@ -1,11 +1,12 @@
-
+#include <iostream>
 #include <cmath>
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "udp_socket.h"
-#include <iostream>
+
 namespace out
 {
 
@@ -25,9 +26,12 @@ UdpSocket::UdpSocket(const char* hostname, int port) : _port(port), _socket(-1),
   _addr.sin_port   = htons(_port);
   memcpy(&_addr.sin_addr, _host->h_addr_list[0], _host->h_length);
 
-  // if(bind(_socket, (struct sockaddr*)&_addr, sizeof(_addr)) == -1) {
-  //   perror("Could not bind UDP socket");
-  // }
+  struct timeval optval;
+  optval.tv_usec = 0;
+  optval.tv_sec = 5; // 5 seconds timeout
+  
+  if(setsockopt(_socket, SOL_SOCKET, SO_RCVTIMEO, &optval, sizeof(optval)) < 0)
+    perror("Could not set timeout");
 }
 
 void UdpSocket::start()
@@ -39,10 +43,19 @@ void UdpSocket::start()
     while(true) {			       
       auto rlen = recvfrom(_socket, _buf, MAX_BUF_LEN, 0,
 			   (struct sockaddr *) &addr_tmp, &slen_tmp);
-
-      // puts("Received some udp data");
       
-      if(rlen == -1) perror("Could not receive data in UDP socket");
+      if(rlen == -1) {
+	if(_socket == -1) {
+	  puts("Closing UDP socket");
+	  return;
+	}
+	
+	if(errno == EAGAIN || errno == EWOULDBLOCK) continue;
+	else {
+	  perror("Could not receive data in UDP socket");
+	  return;
+	}
+      }
       else if(_callback) _callback->onUdpMessage(_buf, rlen);
     }
   });
@@ -66,13 +79,20 @@ void UdpSocket::send(const char *buf, size_t len)
   }
 }
 
-UdpSocket::~UdpSocket()
+void UdpSocket::close()
 {
   if(_socket != -1) {
-    close(_socket);
+    puts("Try closing UDP socket");
+    ::close(_socket);
     _socket = -1;
     _recv_thread.join();
+    puts("Thread is joined");
   }
+}
+
+UdpSocket::~UdpSocket()
+{
+  close();
 }
 
 }

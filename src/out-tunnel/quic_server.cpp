@@ -83,6 +83,11 @@ QuicOutTunnelTransportFactory::make(folly::EventBase* evb,
   _handler->set_quic_socket(transport);
   
   transport->setDatagramCallback(_handler);
+  transport->setQLogger(QLog<quic::VantagePoint::Server>::create(QuicServer::DEFAULT_QLOG_PATH));
+
+  auto dcid = transport->getClientChosenDestConnectionId();
+  if(dcid.hasValue())
+    _server->set_qlog_filename(dcid.value().hex() + quic::FileQLogger::kQlogExtension);
   
   return transport;
 }
@@ -96,8 +101,8 @@ QuicServer::QuicServer(const std::string& host, uint16_t port, out::UdpSocket * 
   _handler->set_udp_socket(_udp_socket);
   _udp_socket->set_callback(_handler.get());
   
-  _server->setQuicServerTransportFactory(
-    std::make_unique<QuicOutTunnelTransportFactory>(_handler.get()));
+  _server->setQuicServerTransportFactory(std::make_unique<QuicOutTunnelTransportFactory>(_handler.get(),
+											 this));
   _server->setTransportStatsCallbackFactory(std::make_unique<quic::samples::LogQuicStatsFactory>());
 
   auto ctx = create_server_ctx();
@@ -114,6 +119,11 @@ QuicServer::QuicServer(const std::string& host, uint16_t port, out::UdpSocket * 
   _server->setTransportSettings(std::move(settings));
 }
 
+void QuicServer::set_qlog_filename(std::string file_name)
+{
+  _qlog_file = std::move(file_name);
+}
+
 void QuicServer::start()
 {
   folly::SocketAddress addr(_host.c_str(), _port);
@@ -122,4 +132,13 @@ void QuicServer::start()
   _udp_socket->start();
   LOG(INFO) << "Quic out tunnel started at: " << addr.describe();
   _evb.loopForever();
+  LOG(INFO) << "Quic Server stopped ";
+}
+
+void QuicServer::stop()
+{
+  LOG(INFO) << "Stopping quic server";
+  _udp_socket->close();
+  _server->shutdown();
+  _evb.terminateLoopSoon();
 }

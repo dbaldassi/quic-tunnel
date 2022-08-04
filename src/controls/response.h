@@ -49,7 +49,8 @@ struct StartServer : public Response
 };
 
 struct StopServer : public Response
-{  
+{
+  std::string url;
   nlohmann::json data() const override;
 };
 

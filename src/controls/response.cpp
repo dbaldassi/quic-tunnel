@@ -40,7 +40,7 @@ nlohmann::json StartServer::data() const
 
 nlohmann::json StopServer::data() const
 {
-  return json{};
+  return json{ { "url", url } };
 }
 
 nlohmann::json Capabilities::data() const
