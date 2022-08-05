@@ -10,6 +10,8 @@
 #include <quic/client/QuicClientTransport.h>
 #include <quic/common/BufUtil.h>
 
+#include <mutex>
+
 #include "qlogfile.h"
 
 class QuicClient : public quic::QuicSocket::ConnectionSetupCallback,
@@ -35,6 +37,8 @@ class QuicClient : public quic::QuicSocket::ConnectionSetupCallback,
   folly::ScopedEventBaseThread _network_thread;
 
   quic::CongestionControlType _cc;
+
+  mutable std::mutex mutex;
   
   void send_message(quic::StreamId id, quic::BufQueue& data);
 
@@ -45,7 +49,7 @@ public:
 
   ~QuicClient() = default;
 
-  std::string_view get_qlog_path() const noexcept { return _qlog_path; }
+  std::string_view get_qlog_path()     const noexcept { return _qlog_path; }
   std::string_view get_qlog_filename() const noexcept { return _qlog_file_name; }
 
   void set_cc(quic::CongestionControlType cc) noexcept { _cc = cc; }

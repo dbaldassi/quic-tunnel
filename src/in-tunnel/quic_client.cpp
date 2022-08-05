@@ -64,6 +64,7 @@ void QuicClient::stop()
   auto evb = _network_thread.getEventBase();
 
   evb->runInEventBaseThreadAndWait([this, &evb]() {
+				     std::unique_lock<std::mutex> lock(mutex);
 				 _quic_transport->closeTransport();
 				 _quic_transport = nullptr;
 			       });
@@ -99,21 +100,17 @@ void QuicClient::send_message_datagram(const char * buffer, size_t len)
   auto evb = _network_thread.getEventBase();
 
   evb->runInEventBaseThread([this, msg = std::move(m)]() {
-			      // LOG(INFO) << "Sending : ";
     quic::Buf qbuf = folly::IOBuf::copyBuffer(std::move(msg));
-    auto l = qbuf->length();
-    
-    auto state = _quic_transport->getState();
-    auto maxWriteFrameSize = state->datagramState.maxWriteFrameSize;
 
-    auto res = _quic_transport->writeDatagram(std::move(qbuf));
-    if(res.hasError()) {
-      LOG(ERROR) << "In quic tunnel write dgram error=" << uint32_t(res.error())
-		 << " " << _quic_transport->getDatagramSizeLimit()
-		 << " " << l
-		 << " " << maxWriteFrameSize;
+    {
+      std::unique_lock<std::mutex> lock(mutex);
+      if(!_quic_transport) return;
       
-      std::exit(1);
+      auto res = _quic_transport->writeDatagram(std::move(qbuf));
+      if(res.hasError()) {
+	LOG(ERROR) << "In quic tunnel write dgram error=" << uint32_t(res.error());
+	std::exit(1);
+      }
     }
   });
 }

@@ -53,12 +53,12 @@ ssize_t UdpSocket::recv() noexcept
     rec_len = recvfrom(_socket, _buf, MAX_BUF_LEN, 0, (struct sockaddr*)&addr, &slen);
 
     if(rec_len == -1) {
+      if(_socket == -1) {
+	puts("Closing UDP socket");
+	return -1;
+      }
       if(errno == EAGAIN || errno == EWOULDBLOCK) {
-	if(_socket == -1) {
-	  puts("Closing UDP socket");
-	  return -1;
-	}
-	else puts("Refreshing UDP socket");
+	puts("Refreshing UDP socket");
       }
       else {
 	perror("Could not receive data in UDP socket");

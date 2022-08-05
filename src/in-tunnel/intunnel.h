@@ -18,6 +18,11 @@ class MvfstInClient
   in::UdpSocket _udp_socket;
   bool _datagrams;
 
+  bool _external_file_transfer;
+  bool _multiplexed_file_transfer;
+
+  std::string _scp_file_url;
+
   static RandomGenerator _random_generator;
 public:
   static constexpr auto MAX_NUMBER_SESSION = 5;
@@ -37,6 +42,9 @@ public:
   
   void run();
   void stop();
+
+  void enable_external_file_transfer();
+  void enable_multiplexed_file_transfer();
 
   static std::shared_ptr<MvfstInClient> create(std::string_view server_addr, uint16_t server_port);
 };

@@ -37,6 +37,12 @@ JsonParser::CommandPtr JsonParser::parse_start_client(const json& data)
   if(auto addr = data.find("quic_host"); addr != data.end()) {
     cmd->quic_host = addr->get<std::string>();
   }
+  if(auto transfer = data.find("external_file_transfer"); transfer != data.end()) {
+    cmd->external_file_transfer = transfer->get<bool>();
+  }
+  if(auto transfer = data.find("multiplexed_file_transfer"); transfer != data.end()) {
+    cmd->multiplexed_file_transfer = transfer->get<bool>();
+  }
   
   return std::move(cmd);
 }
@@ -74,6 +80,12 @@ JsonParser::CommandPtr JsonParser::parse_start_server(const json& data)
   }
   if(auto cc = data.find("cc"); cc != data.end()) {
     cmd->cc = cc->get<std::string>();
+  }
+  if(auto transfer = data.find("external_file_transfer"); transfer != data.end()) {
+    cmd->external_file_transfer = transfer->get<bool>();
+  }
+  if(auto transfer = data.find("multiplexed_file_transfer"); transfer != data.end()) {
+    cmd->multiplexed_file_transfer = transfer->get<bool>();
   }
   
   return std::move(cmd);

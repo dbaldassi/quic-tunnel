@@ -33,13 +33,16 @@ public:
 class StartClient : public Command
 {
 public:
-  bool datagrams = true;
-  std::string cc = "bbr";
-  std::string impl = "mvfst"; // TODO
+  bool        datagrams = true;
+  std::string cc        = "bbr";
+  std::string impl      = "mvfst"; // TODO
 
-  int quic_port;
+  int         quic_port;
   std::string quic_host;
 
+  bool external_file_transfer    = false;
+  bool multiplexed_file_transfer = false;
+  
   ResponsePtr run() override;
 };
 
@@ -61,10 +64,14 @@ class StartServer : public Command
 public:
   int port_out;
   int quic_port;
+  
   std::string cc;
   std::string quic_host;
   std::string addr_out;
   std::string impl = "mvfst"; // TODO
+
+  bool external_file_transfer    = false;
+  bool multiplexed_file_transfer = false;
 
   ResponsePtr run() override;
 };
