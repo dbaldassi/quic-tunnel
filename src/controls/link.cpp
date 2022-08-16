@@ -87,13 +87,19 @@ void Link::reset_limit()
   rtnl_qdisc_delete(nl_sock, qnetem);
 }
 
-bool Link::set_limit(std::chrono::milliseconds delay, bit::KiloBits rate)
+bool Link::set_limit(std::chrono::milliseconds delay, bit::KiloBits rate,
+		     std::optional<int> loss, std::optional<int> duplicates)
 {
   reset_limit();
 
   // Set delay for netem qdisc
   auto delay_us = std::chrono::duration_cast<std::chrono::microseconds>(delay);
   rtnl_netem_set_delay(qnetem, delay_us.count());
+  if(loss.has_value())
+    rtnl_netem_set_loss(qnetem, *loss);
+  if(duplicates.has_value()) {
+    rtnl_netem_set_duplicate(qnetem, *duplicates);
+  }
 
   // Set rate and limit for tbf qdisc
   auto latency_us = std::chrono::duration_cast<std::chrono::microseconds>(LATENCY);

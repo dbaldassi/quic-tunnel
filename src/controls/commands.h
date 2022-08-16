@@ -2,6 +2,7 @@
 #define COMMANDS_H
 
 #include <memory>
+#include <optional>
 
 namespace response
 {
@@ -97,6 +98,9 @@ public:
   int delay = 1; // one way delay / propagation delay in ms
   int burst = 20; // burst in kb
   int latency = 400; // queing latency in ms
+
+  std::optional<int> loss;
+  std::optional<int> duplicates;
 
   bool reset = false; // if reset has been requested
 

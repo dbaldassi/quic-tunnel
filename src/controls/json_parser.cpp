@@ -111,6 +111,14 @@ JsonParser::CommandPtr JsonParser::parse_link(const json& data)
     cmd->delay = delay->get<int>();
   }
 
+  if(auto loss = data.find("loss"); loss != data.end()) {
+    cmd->loss = loss->get<int>();
+  }
+
+  if(auto duplicates = data.find("duplicates"); duplicates != data.end()) {
+    cmd->duplicates = duplicates->get<int>();
+  }
+    
   if(auto bitrate = data.find("bitrate"); bitrate != data.end()) {
     cmd->bitrate = bitrate->get<int>();
   }

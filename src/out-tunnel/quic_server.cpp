@@ -1,5 +1,7 @@
 #include "quic_server.h"
 
+#include <quic/congestion_control/ServerCongestionControllerFactory.h>
+
 // Linking issue if we don't define these, somehow the symbol are not the mvfst lib
 constexpr folly::StringPiece fizz::Sha256::BlankHash;
 constexpr folly::StringPiece fizz::Sha384::BlankHash;
@@ -111,7 +113,8 @@ QuicServer::QuicServer(const std::string& host, uint16_t port, out::UdpSocket * 
   settings.maxRecvPacketSize = 4096;
   settings.canIgnorePathMTU = true;
   settings.defaultCongestionController = _cc;
-  
+
+  _server->setCongestionControllerFactory(std::make_shared<quic::ServerCongestionControllerFactory>());
   _server->setTransportSettings(std::move(settings));
 }
 

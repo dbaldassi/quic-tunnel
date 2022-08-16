@@ -160,7 +160,10 @@ ResponsePtr Link::run()
     tc::Link::reset_limit();
   }
   else {
-    success = tc::Link::set_limit(std::chrono::milliseconds(delay), bit::KiloBits(bitrate));
+    success = tc::Link::set_limit(std::chrono::milliseconds(delay),
+				  bit::KiloBits(bitrate),
+				  loss.value_or(0),
+				  duplicates.value_or(0));
   }
 
   if(!success) {

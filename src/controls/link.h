@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <concepts>
+#include <optional>
 
 namespace std
 {
@@ -122,7 +123,9 @@ public:
   static void exit();
 
   static bool set_limit(std::chrono::milliseconds delay,
-			bit::KiloBits rate);
+			bit::KiloBits rate,
+			std::optional<int> loss,
+			std::optional<int> duplicates);
   
   static void reset_limit();
 };

@@ -41,17 +41,7 @@ RandomGenerator MvfstInClient::_random_generator = random_sequence();
 MvfstInClient::MvfstInClient(int id, std::string_view server_addr, uint16_t server_port)
   : _id(id), _quic_client(new QuicClient(server_addr, server_port)), _datagrams(true),
     _external_file_transfer(false), _multiplexed_file_transfer(false)
-{
-  if(_external_file_transfer) {
-    if(const char * url = std::getenv("SCP_FILE_URL")) {
-      _scp_file_url = url;
-    }
-    else {
-      fmt::print("Can not make scp file transfer, you must set the SCP_FILE_URL environment variable first\n");
-      _external_file_transfer = false;
-    }
-  }
-}
+{}
 
 MvfstInClient::~MvfstInClient() noexcept
 {}
@@ -59,15 +49,24 @@ MvfstInClient::~MvfstInClient() noexcept
 void MvfstInClient::run()
 {
   int pid = -1;
-  
+
   if(_external_file_transfer) {
-    pid = fork();
+    if(const char * url = std::getenv("SCP_FILE_URL")) {
+      _scp_file_url = url;
+      fmt::print("scp file transfer set to : {}\n", _scp_file_url);
+    }
+    else {
+      fmt::print("Can not make scp file transfer, you must set the SCP_FILE_URL environment variable first\n");
+      _external_file_transfer = false;
+    }
   }
+  
+  if(_external_file_transfer) pid = fork();
 
   if(pid == 0) {
     // Start scp file transfer
     fmt::print("Starting scp file transfer to : {}\n", _scp_file_url);
-    execl("/usr/bin/scp", "/usr/bin/scp", _scp_file_url.c_str(), ".");
+    execl("/usr/bin/scp", "/usr/bin/scp", _scp_file_url.c_str(), ".", NULL);
   }
   else {
     _udp_socket.open(_in_port);
@@ -132,6 +131,7 @@ std::string MvfstInClient::get_qlog_file()
 
 void MvfstInClient::enable_external_file_transfer()
 {
+  fmt::print("enable scp file transfer");
   _external_file_transfer = true;
 }
 
