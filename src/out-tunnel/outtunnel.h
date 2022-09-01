@@ -28,7 +28,9 @@ public:
   ~MvfstOutClient() noexcept;
     
   int id() const { return _id; }
-  
+
+
+  void set_datagrams(bool enable);
   void run();
   void stop();
 

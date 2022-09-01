@@ -63,6 +63,9 @@ JsonParser::CommandPtr JsonParser::parse_start_server(const json& data)
 {
   auto cmd = std::make_unique<cmd::StartServer>();
 
+  if(auto dgram = data.find("datagrams"); dgram != data.end()) {
+    cmd->datagrams = dgram->get<bool>();
+  }
   if(auto port = data.find("port_out"); port != data.end()) {
     cmd->port_out = port->get<int>();
   }

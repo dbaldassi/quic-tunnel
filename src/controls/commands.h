@@ -71,6 +71,7 @@ public:
   std::string addr_out;
   std::string impl = "mvfst"; // TODO
 
+  bool datagrams = true;
   bool external_file_transfer    = false;
   bool multiplexed_file_transfer = false;
 

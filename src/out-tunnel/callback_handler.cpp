@@ -177,7 +177,7 @@ void CallbackHandler::onUdpMessage(const char * buffer, size_t len) noexcept
     auto qbuf = folly::IOBuf::copyBuffer(std::move(msg));
 
     // LOG(INFO) << "len: " << len << " " << quic::kMinMaxUDPPayload;
-    if(len >= quic::kMinMaxUDPPayload) {
+    if(!datagrams || len >= quic::kMinMaxUDPPayload) {
       // LOG(INFO) << "len: " << len;
       auto id = _transport->createUnidirectionalStream().value();
       auto res = _transport->writeChain(id, std::move(qbuf), true);

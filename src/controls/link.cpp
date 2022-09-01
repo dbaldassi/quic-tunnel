@@ -95,9 +95,12 @@ bool Link::set_limit(std::chrono::milliseconds delay, bit::KiloBits rate,
   // Set delay for netem qdisc
   auto delay_us = std::chrono::duration_cast<std::chrono::microseconds>(delay);
   rtnl_netem_set_delay(qnetem, delay_us.count());
-  if(loss.has_value())
+  if(loss.has_value()) {
+    fmt::print("Set loss to {} \n", *loss);
     rtnl_netem_set_loss(qnetem, *loss);
+  }
   if(duplicates.has_value()) {
+    fmt::print("Set duplicates to {} \n", *duplicates);
     rtnl_netem_set_duplicate(qnetem, *duplicates);
   }
 

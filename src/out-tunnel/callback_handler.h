@@ -24,6 +24,7 @@ class CallbackHandler : public quic::QuicSocket::ConnectionSetupCallback,
   
 public:
   std::string                       qlog_file;
+  bool                              datagrams;
 
   CallbackHandler() = default;
 

@@ -75,6 +75,7 @@ class QuicServer
   quic::CongestionControlType _cc;
 
   std::string _qlog_file;
+  bool        _datagrams;
   
 public:
   static constexpr const char * DEFAULT_QLOG_PATH = "tunnel-out-logs";
@@ -87,6 +88,7 @@ public:
 
   std::string_view get_qlog_path() const noexcept { return DEFAULT_QLOG_PATH; }
   std::string_view get_qlog_filename() const noexcept { return _handler->qlog_file; }
+  void set_datagrams(bool enable);
   
   void set_cc(quic::CongestionControlType cc) noexcept { _cc = cc; }
   void stop();

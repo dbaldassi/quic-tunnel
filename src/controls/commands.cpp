@@ -91,6 +91,7 @@ ResponsePtr StartServer::run()
   // Create quic client
   auto server = ::MvfstOutClient::create(addr_out, quic_port, port_out);
   server->set_cc(cc);
+  server->set_datagrams(datagrams);
   
   // Ensure it is created
   if(server == nullptr) {

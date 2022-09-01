@@ -69,6 +69,11 @@ void MvfstOutClient::set_cc(std::string_view cc)
   else                   _quic_server->set_cc(quic::CongestionControlType::None);
 }
 
+void MvfstOutClient::set_datagrams(bool enable)
+{
+  _quic_server->set_datagrams(enable);
+}
+
 std::shared_ptr<MvfstOutClient> MvfstOutClient::create(std::string_view server_addr,
 						       uint16_t server_port,
 						       uint16_t out_port)

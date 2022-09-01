@@ -141,3 +141,8 @@ void QuicServer::stop()
   _server->shutdown();
   _evb.terminateLoopSoon();
 }
+
+void QuicServer::set_datagrams(bool enable)
+{
+  _handler->datagrams = enable;
+}
