@@ -13,7 +13,7 @@
 
 #include <glog/logging.h>
 
-std::unordered_map<int, std::shared_ptr<MvfstInClient>> MvfstInClient::sessions;
+std::unordered_map<int, std::shared_ptr<InTunnel>> InTunnel::sessions;
 
 // Random Number generation ///////////////////////////////////////////////////
 
@@ -22,31 +22,38 @@ static RandomGenerator random_sequence()
   std::random_device r;
 
   std::default_random_engine dre(r());
-  std::uniform_int_distribution<int> uniform_dist(0, MvfstInClient::MAX_NUMBER_SESSION - 1);
+  std::uniform_int_distribution<int> uniform_dist(0, InTunnel::MAX_NUMBER_SESSION - 1);
 
   for(;;) {
-    if(MvfstInClient::sessions.size() == MvfstInClient::MAX_NUMBER_SESSION)
+    if(InTunnel::sessions.size() == InTunnel::MAX_NUMBER_SESSION)
       co_yield -1;
     
     int id = uniform_dist(dre);
-    if(MvfstInClient::sessions.contains(id))
+    if(InTunnel::sessions.contains(id))
       co_yield id;
   }
 }
 
-RandomGenerator MvfstInClient::_random_generator = random_sequence();
+RandomGenerator InTunnel::_random_generator = random_sequence();
 
 // Mvfstclient ////////////////////////////////////////////////////////////////
 
-MvfstInClient::MvfstInClient(int id, std::string_view server_addr, uint16_t server_port)
-  : _id(id), _quic_client(new QuicClient(server_addr, server_port)), _datagrams(true),
+InTunnel::InTunnel(int id, std::string_view server_addr, uint16_t server_port)
+  : _id(id), _quic_client(nullptr), _datagrams(true),
     _external_file_transfer(false), _multiplexed_file_transfer(false)
+{
+  QuicClientBuilder builder;
+  builder.host = server_addr;
+  builder.port = server_port;
+  builder.impl = QuicClientBuilder::QuicImplementation::MVFST;
+  
+  _quic_client = builder.create();
+}
+
+InTunnel::~InTunnel() noexcept
 {}
 
-MvfstInClient::~MvfstInClient() noexcept
-{}
-
-void MvfstInClient::run()
+void InTunnel::run()
 {
   int pid = -1;
 
@@ -91,37 +98,33 @@ void MvfstInClient::run()
   }
 }
 
-void MvfstInClient::set_cc(std::string_view cc)
+bool InTunnel::set_cc(std::string_view cc)
 {
   fmt::print("Set {} congestion controller\n", cc);
   
-  if(cc == "newreno")    _quic_client->set_cc(quic::CongestionControlType::NewReno);
-  else if(cc == "cubic") _quic_client->set_cc(quic::CongestionControlType::Cubic);
-  else if(cc == "copa")  _quic_client->set_cc(quic::CongestionControlType::Copa);
-  else if(cc == "bbr")   _quic_client->set_cc(quic::CongestionControlType::BBR);
-  else                   _quic_client->set_cc(quic::CongestionControlType::None);
+  return _quic_client->set_cc(cc);
 }
 
-void MvfstInClient::set_datagram(bool enable)
+void InTunnel::set_datagram(bool enable)
 {
   fmt::print("Set datagrams : {}\n", enable);
   _datagrams = enable;
 }
 
-int MvfstInClient::allocate_in_port()
+int InTunnel::allocate_in_port()
 {
   _in_port = 3479;
   fmt::print("Got port : {}\n", _in_port);
   return _in_port = 3479;
 }
   
-void MvfstInClient::stop()
+void InTunnel::stop()
 {
   _udp_socket.close();
   _quic_client->stop();
 }
 
-std::string MvfstInClient::get_qlog_file()
+std::string InTunnel::get_qlog_file()
 {
   std::ostringstream oss;
   oss << _quic_client->get_qlog_path() << "/" << _quic_client->get_qlog_filename();
@@ -129,18 +132,18 @@ std::string MvfstInClient::get_qlog_file()
   return oss.str();
 }
 
-void MvfstInClient::enable_external_file_transfer()
+void InTunnel::enable_external_file_transfer()
 {
   fmt::print("enable scp file transfer");
   _external_file_transfer = true;
 }
 
-void MvfstInClient::enable_multiplexed_file_transfer()
+void InTunnel::enable_multiplexed_file_transfer()
 {
   _multiplexed_file_transfer = true;
 }
 
-std::shared_ptr<MvfstInClient> MvfstInClient::create(std::string_view server_addr,
+std::shared_ptr<InTunnel> InTunnel::create(std::string_view server_addr,
 						     uint16_t server_port)
 {
   fmt::print("Create new mvfst client \n");
@@ -148,7 +151,7 @@ std::shared_ptr<MvfstInClient> MvfstInClient::create(std::string_view server_add
   auto id     = _random_generator();
   if(id == -1) return nullptr;
   
-  auto client = std::make_shared<MvfstInClient>(id, server_addr, server_port);
+  auto client = std::make_shared<InTunnel>(id, server_addr, server_port);
 
   sessions[id] = client;
   

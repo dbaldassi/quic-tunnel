@@ -18,11 +18,13 @@ add_subdirectory( external/nlohmann_json )
 
 add_executable( quic-tunnel
   src/in-tunnel/quic_client.cpp
+  src/in-tunnel/mvfst_client.cpp
   src/in-tunnel/udp_socket.cpp
   src/in-tunnel/intunnel.cpp
   
   src/out-tunnel/callback_handler.cpp
   src/out-tunnel/quic_server.cpp
+  src/out-tunnel/mvfst_server.cpp
   src/out-tunnel/udp_socket.cpp
   src/out-tunnel/outtunnel.cpp
 

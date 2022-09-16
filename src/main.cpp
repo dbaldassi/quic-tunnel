@@ -149,13 +149,13 @@ int main(int argc, char *argv[])
   }
 
   if(*mode == "client") {
-    MvfstInClient qclient(0, quic_server_host, quic_port);
-    qclient.allocate_in_port();
-    qclient.run();
+    InTunnel in(0, quic_server_host, quic_port);
+    in.allocate_in_port();
+    in.run();
   }
   else if(*mode == "server") {
-    MvfstOutClient qserver(0, turn_addr, quic_port, turn_port);
-    qserver.run();
+    OutTunnel out(0, turn_addr, quic_port, turn_port);
+    out.run();
   }
   else if(*mode == "websocket") {  
     // init tc

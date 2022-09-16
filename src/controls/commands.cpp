@@ -15,7 +15,7 @@ namespace cmd
 std::unique_ptr<response::Response> StartClient::run()
 {
   // Create quic client
-  auto client = ::MvfstInClient::create(quic_host, quic_port);
+  auto client = ::InTunnel::create(quic_host, quic_port);
 
   // Ensure it is created
   if(client == nullptr) {
@@ -53,9 +53,9 @@ std::unique_ptr<response::Response> StartClient::run()
 ResponsePtr StopClient::run()
 {
   // Check if the specified id exists
-  if(MvfstInClient::sessions.contains(id)) {
-    auto client = MvfstInClient::sessions[id];
-    MvfstInClient::sessions.erase(id);
+  if(InTunnel::sessions.contains(id)) {
+    auto client = InTunnel::sessions[id];
+    InTunnel::sessions.erase(id);
 
     client->stop();
 
@@ -89,7 +89,7 @@ ResponsePtr StopClient::run()
 ResponsePtr StartServer::run()
 {
   // Create quic client
-  auto server = ::MvfstOutClient::create(addr_out, quic_port, port_out);
+  auto server = ::OutTunnel::create(addr_out, quic_port, port_out);
   server->set_cc(cc);
   server->set_datagrams(datagrams);
   
@@ -121,9 +121,9 @@ ResponsePtr StartServer::run()
 ResponsePtr StopServer::run()
 {
   // Check if the specified id exists
-  if(MvfstOutClient::sessions.contains(id)) {
-    auto server = MvfstOutClient::sessions[id];
-    MvfstOutClient::sessions.erase(id);
+  if(OutTunnel::sessions.contains(id)) {
+    auto server = OutTunnel::sessions[id];
+    OutTunnel::sessions.erase(id);
 
     server->stop();
 

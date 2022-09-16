@@ -10,7 +10,7 @@
 
 class QuicServer;
 
-class MvfstOutClient
+class OutTunnel
 {
   int _id;
   int _out_port;
@@ -22,10 +22,10 @@ public:
 
   static constexpr auto MAX_NUMBER_SESSION = 5;
   
-  static std::unordered_map<int, std::shared_ptr<MvfstOutClient>> sessions;
+  static std::unordered_map<int, std::shared_ptr<OutTunnel>> sessions;
 
-  MvfstOutClient(int id, std::string_view server_addr, uint16_t server_port, uint16_t out_port);
-  ~MvfstOutClient() noexcept;
+  OutTunnel(int id, std::string_view server_addr, uint16_t server_port, uint16_t out_port);
+  ~OutTunnel() noexcept;
     
   int id() const { return _id; }
 
@@ -37,9 +37,9 @@ public:
   void set_cc(std::string_view cc);
   std::string get_qlog_file();
 
-  static std::shared_ptr<MvfstOutClient> create(std::string_view server_addr,
-						uint16_t server_port,
-						uint16_t out_port);
+  static std::shared_ptr<OutTunnel> create(std::string_view server_addr,
+					   uint16_t server_port,
+					   uint16_t out_port);
 };
 
 #endif /* OUTTUNNEL_H */
