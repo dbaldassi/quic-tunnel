@@ -1,6 +1,7 @@
 #ifndef QUIC_CLIENT_H
 #define QUIC_CLIENT_H
 
+#include <string>
 #include <string_view>
 #include <functional>
 #include <optional>
@@ -71,7 +72,7 @@ public:
 class QuicClientBuilder
 {
 public:
-  enum class QuicImplementation { MVFST };
+  enum class QuicImplementation { MVFST, QUICGO };
 
   std::string        host; // Quic Server address
   uint16_t           port; // Quic server port

@@ -2,3 +2,4 @@ build/
 mvfst/
 lib/
 build-linkanda/
+libgo*

@@ -70,7 +70,7 @@ public:
 class QuicServerBuilder
 {
 public:
-  enum class QuicImplementation { MVFST };
+  enum class QuicImplementation { MVFST, QUICGO };
   
   std::string host; // ip address the server will bind to
   uint16_t port; // port the server will listen to

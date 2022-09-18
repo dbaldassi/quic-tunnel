@@ -45,7 +45,7 @@ InTunnel::InTunnel(int id, std::string_view server_addr, uint16_t server_port)
   QuicClientBuilder builder;
   builder.host = server_addr;
   builder.port = server_port;
-  builder.impl = QuicClientBuilder::QuicImplementation::MVFST;
+  builder.impl = QuicClientBuilder::QuicImplementation::QUICGO;
   
   _quic_client = builder.create();
 }

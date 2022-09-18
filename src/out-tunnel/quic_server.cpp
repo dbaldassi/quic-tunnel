@@ -1,5 +1,6 @@
 #include "quic_server.h"
-#include "mvfst_server.h"
+#include "mvfst/mvfst_server.h"
+#include "quicgo/quicgo_server.h"
 
 #include <fmt/core.h>
 
@@ -18,6 +19,8 @@ std::unique_ptr<QuicServer> QuicServerBuilder::create() const
   switch (impl) {
   case QuicImplementation::MVFST:
     return std::make_unique<MvfstServer>(host, port, udp_socket);
+  case QuicImplementation::QUICGO:
+    return std::make_unique<QuicGoServer>();
   }
 
   return nullptr;

@@ -1,0 +1,19 @@
+# -- out tunnel
+
+target_sources( quic-tunnel PRIVATE  
+  quic_server.cpp
+  udp_socket.cpp
+  outtunnel.cpp
+
+  quic_server.h
+  udp_socket.h
+  outtunnel.h
+  )
+
+add_subdirectory( mvfst )
+add_subdirectory( quicgo )
+
+target_link_libraries( quic-tunnel PRIVATE
+  mvfst::server
+  quicgo::server
+  )

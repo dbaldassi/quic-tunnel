@@ -42,7 +42,7 @@ OutTunnel::OutTunnel(int id,
     _quic_server(nullptr)
 {
   QuicServerBuilder builder;
-  builder.impl = QuicServerBuilder::QuicImplementation::MVFST;
+  builder.impl = QuicServerBuilder::QuicImplementation::QUICGO;
   builder.host = "0.0.0.0";
   builder.port = 8888;
   builder.udp_socket = &_udp_socket;
