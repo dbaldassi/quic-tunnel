@@ -43,7 +43,7 @@ void UdpSocket::start()
     while(true) {			       
       auto rlen = recvfrom(_socket, _buf, MAX_BUF_LEN, 0,
 			   (struct sockaddr *) &addr_tmp, &slen_tmp);
-      
+
       if(rlen == -1) {
 	if(_socket == -1) {
 	  puts("Closing UDP socket");

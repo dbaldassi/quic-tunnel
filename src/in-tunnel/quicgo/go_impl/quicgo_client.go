@@ -1,55 +1,108 @@
 package main
 
+/*
+#cgo CPPFLAGS: -Wno-overflow -Wno-write-strings
+#include "callback.h"
+#include <stdlib.h>
+*/
 import "C"
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
+	"unsafe"
+	//"bytes"
+	// "sync"
+	"io"
 
 	"github.com/lucas-clemente/quic-go"
+	// "github.com/lucas-clemente/quic-go/quicvarint"
 )
 
 const addr = "localhost:4242"
 const message = "foobar"
 
-func qq() {
+type datagram struct {
+	flowID uint64
+	data   []byte
+}
+
+type Session struct {
+	sess quic.Connection
+
+	// readFlowsLock sync.RWMutex
+	// readFlows     map[uint64]*ReadFlow
+}
+
+type ReadFlow struct {
+	session *Session
+	buffer  io.ReadWriteCloser
+}
+
+var quicSession *Session
+
+func Close() error {
+	return quicSession.sess.CloseWithError(0, "eos")
+}
+
+func sendDatagram(d *datagram) error {
+	// buf := bytes.Buffer{}
+	// quicvarint.Write(&buf, d.flowID)
+	// buf.Write(d.data)
+	return quicSession.sess.SendMessage(d.data)
+}
+
+//export goClientStart
+func goClientStart(datagrams bool, wrapper *C.wrapper_t) {
+	fmt.Println("Starting quic go client")
+
 	tlsConf := &tls.Config{
 		InsecureSkipVerify: true,
 		NextProtos: []string{"quic-echo-example"},
 	}
 
-	conn, err := quic.DialAddr(addr, tlsConf, nil)
-	if err != nil {
-		panic(err)
+	quicConf := &quic.Config{
+		EnableDatagrams: datagrams,
 	}
-	
-	stream, err := conn.OpenStreamSync(context.Background())
-	if err != nil {
-		panic(err)
-	}
-	
-	fmt.Printf("Client: Sending '%s'\n", message)
-	_, err = stream.Write([]byte(message))
-	// err = stream.Close()
+
+	conn, err := quic.DialAddr(addr, tlsConf, quicConf)
 	if err != nil {
 		panic(err)
 	}
 
-	buf := make([]byte, 1024)
-	_, err = stream.Read(buf)
-	if err != nil {
-		panic(err)
-	}
+	// quicSession = &Session{ conn, sync.RWMutex{}, make(map[uint64]*ReadFlow) };
+	quicSession = &Session{ conn };
 
-	fmt.Printf("Client: Got '%s'\n", buf)
+	go func() {
+		for {
+			message, err := quicSession.sess.ReceiveMessage()
+			if err != nil {
+				fmt.Printf("failed to receive message: %v\n", err)
+				return
+			}
+			// fmt.Println(string(message[:]))
+			msg:= string(message[:])
+			C.callback(wrapper, C.CString(msg), C.int(len(msg)))
+		}
+	}()
 }
 
-//export goStart
-func goStart() {
-	fmt.Println("Start lolilol")
+//export goClientStop
+func goClientStop() {
+	Close()
+}
+
+//export goClientSendMessageStream
+func goClientSendMessageStream(buf *C.char, len uint64) {
+	
+}
+
+//export goClientSendMessageDatagram
+func goClientSendMessageDatagram(buf *C.char, len uint64) {
+	bufGo:= C.GoBytes(unsafe.Pointer(buf), C.int(len))
+	sendDatagram(&datagram{0, bufGo})
 }
 
 func main() {
-
+	fmt.Println("Main being called")
 }

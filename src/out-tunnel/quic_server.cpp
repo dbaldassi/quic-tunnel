@@ -20,7 +20,7 @@ std::unique_ptr<QuicServer> QuicServerBuilder::create() const
   case QuicImplementation::MVFST:
     return std::make_unique<MvfstServer>(host, port, udp_socket);
   case QuicImplementation::QUICGO:
-    return std::make_unique<QuicGoServer>();
+    return std::make_unique<QuicGoServer>(host, port, udp_socket);
   }
 
   return nullptr;
