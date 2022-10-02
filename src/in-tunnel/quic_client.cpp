@@ -14,7 +14,7 @@ std::unique_ptr<QuicClient> QuicClientBuilder::create() const
   case QuicImplementation::MVFST:
     return std::make_unique<MvfstClient>(host, port);
   case QuicImplementation::QUICGO:
-    return std::make_unique<QuicGoClient>();
+    return std::make_unique<QuicGoClient>(host, port);
   }
 
   return nullptr;

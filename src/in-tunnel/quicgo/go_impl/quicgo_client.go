@@ -11,6 +11,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"unsafe"
+	"context"
 	//"bytes"
 	// "sync"
 	"io"
@@ -42,19 +43,18 @@ type ReadFlow struct {
 var quicSession *Session
 
 func Close() error {
-	return quicSession.sess.CloseWithError(0, "eos")
+	return quicSession.sess.CloseWithError(0, "normal shutdown")
 }
 
 func sendDatagram(d *datagram) error {
-	// buf := bytes.Buffer{}
-	// quicvarint.Write(&buf, d.flowID)
-	// buf.Write(d.data)
 	return quicSession.sess.SendMessage(d.data)
 }
 
+const streamDataPacketLength = 2048
+
 //export goClientStart
-func goClientStart(datagrams bool, wrapper *C.wrapper_t) {
-	fmt.Println("Starting quic go client")
+func goClientStart(addr *C.char, datagrams bool, wrapper *C.wrapper_t) {
+	fmt.Println("Starting quic go client", C.GoString(addr))
 
 	tlsConf := &tls.Config{
 		InsecureSkipVerify: true,
@@ -65,24 +65,64 @@ func goClientStart(datagrams bool, wrapper *C.wrapper_t) {
 		EnableDatagrams: datagrams,
 	}
 
-	conn, err := quic.DialAddr(addr, tlsConf, quicConf)
+	conn, err := quic.DialAddr(C.GoString(addr), tlsConf, quicConf)
 	if err != nil {
 		panic(err)
 	}
 
-	// quicSession = &Session{ conn, sync.RWMutex{}, make(map[uint64]*ReadFlow) };
 	quicSession = &Session{ conn };
 
 	go func() {
 		for {
 			message, err := quicSession.sess.ReceiveMessage()
 			if err != nil {
-				fmt.Printf("failed to receive message: %v\n", err)
-				return
+				if err.Error() == "Application error 0x0: normal shutdown" {
+					fmt.Println("Shutdown client")
+					return
+				} else {
+					panic(err)
+				}
 			}
 			// fmt.Println(string(message[:]))
 			msg:= string(message[:])
 			C.callback(wrapper, C.CString(msg), C.int(len(msg)))
+		}
+	}()
+
+	go func() {
+		for {
+			ctx := context.Background()
+			stream, err := quicSession.sess.AcceptUniStream(ctx)
+			if err != nil {
+				if err.Error() == "Application error 0x0: normal shutdown" {
+					fmt.Println("Shutdown client")
+					return
+				} else {
+					panic(err)
+				}
+			}
+
+			exit := false
+			buffer := make([]byte, streamDataPacketLength)
+			for {
+				select {
+				case <-ctx.Done():
+					exit=true
+					break
+				default:					
+					n, err := stream.Read(buffer)
+					if err == io.EOF {
+						exit = true
+						C.callback(wrapper, C.CString(string(buffer[:n])), C.int(n))
+					} else if err != nil {
+						exit = true
+						break
+					}
+				}
+				if exit {
+					break
+				}
+			}
 		}
 	}()
 }
@@ -94,13 +134,23 @@ func goClientStop() {
 
 //export goClientSendMessageStream
 func goClientSendMessageStream(buf *C.char, len uint64) {
-	
+	stream, err := quicSession.sess.OpenUniStream();
+	if err != nil {
+		panic(err)
+	}
+
+	stream.Write(C.GoBytes(unsafe.Pointer(buf), C.int(len)))
+	stream.Close()
 }
 
 //export goClientSendMessageDatagram
 func goClientSendMessageDatagram(buf *C.char, len uint64) {
-	bufGo:= C.GoBytes(unsafe.Pointer(buf), C.int(len))
-	sendDatagram(&datagram{0, bufGo})
+	if len <= 1200 {
+		bufGo:= C.GoBytes(unsafe.Pointer(buf), C.int(len))
+		sendDatagram(&datagram{0, bufGo})
+	} else {
+		goClientSendMessageStream(buf, len)
+	}
 }
 
 func main() {

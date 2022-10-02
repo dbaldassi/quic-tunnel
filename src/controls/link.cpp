@@ -17,6 +17,8 @@ struct rtnl_qdisc * Link::qnetem  = NULL;
 struct nl_cache   * Link::cache   = NULL;
 struct rtnl_link  * Link::link    = NULL;
 
+bool Link::_init = false;
+
 int Link::if_index = 0;
 
 bool display_tc_error(const char * msg)
@@ -62,12 +64,15 @@ bool Link::init(const char * if_name)
   // rtnl_tc_set_parent(TC_CAST(qtbf), TC_H_ROOT); // root
   // rtnl_tc_set_handle(TC_CAST(qtbf), TC_HANDLE(1, 0)); // handle 1:
   rtnl_tc_set_kind(TC_CAST(qtbf), "tbf"); // tbf
+
+  _init = true;
   
   return true;
 }
 
 void Link::exit()
 {
+  if(!_init) return;
   // First remove link constraints
   reset_limit();
 
@@ -79,10 +84,14 @@ void Link::exit()
   nl_socket_free(nl_sock);
   rtnl_link_put(link);
   nl_cache_put(cache);
+
+  _init = false;
 }
 
 void Link::reset_limit()
 {
+  if(!_init) return;
+  
   rtnl_qdisc_delete(nl_sock, qtbf);
   rtnl_qdisc_delete(nl_sock, qnetem);
 }
@@ -90,6 +99,8 @@ void Link::reset_limit()
 bool Link::set_limit(std::chrono::milliseconds delay, bit::KiloBits rate,
 		     std::optional<int> loss, std::optional<int> duplicates)
 {
+  if(!_init) return false;
+  
   reset_limit();
 
   // Set delay for netem qdisc

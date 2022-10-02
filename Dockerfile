@@ -1,8 +1,8 @@
 FROM sharkalash/quic-tunnel-env
 
-ENV CC "/opt/gcc-12/bin/gcc"
-ENV CXX "/opt/gcc-12/bin/g++"
-ENV LD_LIBRARY_PATH "/opt/gcc-12/lib/../lib64"
+# ENV CC "/opt/gcc-12/bin/gcc"
+# ENV CXX "/opt/gcc-12/bin/g++"
+# ENV LD_LIBRARY_PATH "/opt/gcc-12/lib/../lib64"
 
 WORKDIR /root
 

@@ -3,3 +3,7 @@ mvfst/
 lib/
 build-linkanda/
 libgo*
+.dir-locals.el
+GPATH
+GRTAGS
+GTAGS

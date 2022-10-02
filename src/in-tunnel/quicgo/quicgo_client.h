@@ -9,10 +9,12 @@
 
 class QuicGoClient final : public QuicClient
 {
+  std::string _host;
+  int         _port;
 public:
   static constexpr const char * DEFAULT_QLOG_PATH = "tunnel-in-logs";
   
-  QuicGoClient() noexcept = default;
+  QuicGoClient(std::string host, int port) noexcept;
   ~QuicGoClient() = default;
 
   // -- quic client interface

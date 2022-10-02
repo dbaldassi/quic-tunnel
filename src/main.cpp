@@ -151,10 +151,12 @@ int main(int argc, char *argv[])
   if(*mode == "client") {
     InTunnel in(0, quic_server_host, quic_port);
     in.allocate_in_port();
+    in.set_datagram(false);
     in.run();
   }
   else if(*mode == "server") {
     OutTunnel out(0, turn_addr, quic_port, turn_port);
+    out.set_datagrams(false);
     out.run();
   }
   else if(*mode == "websocket") {  

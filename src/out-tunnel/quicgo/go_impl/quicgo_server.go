@@ -9,9 +9,6 @@ import "C"
 
 import (
 	"fmt"
-	// "bytes"
-	// "sync"
-	// "strings"
 	"unsafe"
 	"context"
 	"crypto/rand"
@@ -20,14 +17,17 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"io"
+	"os"
+	"log"
+	"strings"
 	"math/big"
 
 	"github.com/lucas-clemente/quic-go"
-	// "github.com/lucas-clemente/quic-go/quicvarint"
-	// "github.com/pion/transport/packetio"
+	"github.com/lucas-clemente/quic-go/logging"
+	"github.com/lucas-clemente/quic-go/qlog"
 )
 
-const addr = "localhost:4242"
+// const addr = "localhost:4242"
 
 type datagram struct {
 	flowID uint64
@@ -102,20 +102,62 @@ func generateTLSConfig() *tls.Config {
 	}
 }
 
+
+func getFileLogWriter(path string) (io.WriteCloser, error) {
+	logfile, err := os.Create(path)
+	if err != nil {
+		return nil, err
+	}
+	return logfile, nil
+}
+
+// GetQLOGWriter creates the QLOGDIR and returns the GetLogWriter callback
+func GetQLOGWriter() (func(perspective logging.Perspective, connID []byte) io.WriteCloser, error) {
+	qlogDir := os.Getenv("QLOGDIR")
+	fmt.Println("GetQLOG DIR")
+	if len(qlogDir) == 0 {
+		return nil, nil
+	}
+	_, err := os.Stat(qlogDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if err = os.MkdirAll(qlogDir, 0o775); err != nil {
+				return nil, fmt.Errorf("failed to create qlog dir %s: %v", qlogDir, err)
+			}
+		} else {
+			return nil, err
+		}
+	}
+	return func(_ logging.Perspective, connID []byte) io.WriteCloser {
+		path := fmt.Sprintf("%s/%x.qlog", strings.TrimRight(qlogDir, "/"), connID)
+		w, err := getFileLogWriter(path)
+		if err != nil {
+			log.Printf("failed to create qlog file %s: %v", path, err)
+			return nil
+		}
+		log.Printf("created qlog file: %s\n", path)
+		return w
+	}, nil
+}
+
 func sendDatagram(d *datagram) error {
-	// buf := bytes.Buffer{}
-	// quicvarint.Write(&buf, d.flowID)
-	// buf.Write(d.data)
 	return quicSession.sess.SendMessage(d.data)
 }
 
+const streamDataPacketLength = 2048
+
 //export goServerStart
-func goServerStart(datagrams bool, wrapper *C.wrapper_t) {
-	fmt.Println("Starting quic go server")
+func goServerStart(addr *C.char, datagrams bool, wrapper *C.wrapper_t) {
+	fmt.Println("Starting quic go server ")
 	quicConf := &quic.Config{
 		EnableDatagrams: true,
 	}
-	listener, err := quic.ListenAddr(addr, generateTLSConfig(), quicConf)
+	qlogWriter, err := GetQLOGWriter()
+	if qlogWriter != nil {
+		quicConf.Tracer = qlog.NewTracer(qlogWriter)
+	}
+	
+	listener, err := quic.ListenAddr(C.GoString(addr), generateTLSConfig(), quicConf)
 	if err != nil {
 		panic(err)
 	}
@@ -124,71 +166,74 @@ func goServerStart(datagrams bool, wrapper *C.wrapper_t) {
 		panic(err)
 	}
 
-	// quicSession := &Session{ conn, sync.RWMutex{}, make(map[uint64]*ReadFlow) };
 	quicSession = &Session{ conn };
-	// quicSession.AcceptFlow(0)
 	
-	fmt.Println("Start receiving message")
+	go func() {
+		for {
+			stream, err := quicSession.sess.AcceptUniStream(context.Background())
+			if err != nil {
+				if err.Error() == "Application error 0x0: normal shutdown" {
+					fmt.Println("Shutdown server")
+					return
+				} else {
+					panic(err)
+				}
+			}
+
+			buffer := make([]byte, streamDataPacketLength)
+			for {				
+				n, err := stream.Read(buffer)
+				if err == io.EOF {
+					C.callback(wrapper, C.CString(string(buffer[:n])), C.int(n))
+					break
+				} else if err != nil {
+					break
+				}				
+			}
+		}
+	}()
+	
 	for {
 		message, err := quicSession.sess.ReceiveMessage()
 		if err != nil {
-			// if err.Error() == "Application error 0x0: eos" {
-			// 	quicSession.readFlowsLock.Lock()
-			// 	for _, flow := range quicSession.readFlows {
-			// 		err = flow.close()
-			// 		if err != nil {
-			// 			fmt.Printf("failed to close flow: %s\n", err)
-			// 		}
-			// 	}
-			// 	quicSession.readFlowsLock.Unlock()
-			// 	return
-			// }
-			fmt.Printf("failed to receive message: %v\n", err)
-			return
+			if err.Error() == "Application error 0x0: normal shutdown" {
+				fmt.Println("Shutdown server")
+				return
+			} else {
+				panic(err)
+			}
 		}
-		// fmt.Println(string(message[:]))
-		msg:= string(message[:])
+		msg:= string(message[:]) // TODO: optimize this copy
 		C.callback(wrapper, C.CString(msg), C.int(len(msg)))
-
-		// below not needed I think
-		// reader := bytes.NewReader(message)
-		// flowID, err := quicvarint.Read(reader)
-		// if err != nil {
-		// 	fmt.Printf("failed to parse flow identifier from message of length: %v: %s\n", len(message), err)
-		// 	return
-		// }
-		// flow := quicSession.getFlow(flowID)
-		// if flow == nil {
-		// 	// TODO: Create flow?
-		// 	fmt.Printf("dropping message for unknown flow, forgot to create flow with ID %v?", flowID)
-		// 	continue
-		// }
-		// _, err = flow.write(message[quicvarint.Len(flowID):])
-		// if err != nil {
-		// 	// TODO: Handle error?
-		// 	fmt.Printf("// TODO: handler flow.write error: %s\n", err)
-		// 	return
-		// }
 	}
 	fmt.Println("The end ?")	
 }
 
 //export goServerStop
 func goServerStop() {
-
+	quicSession.sess.CloseWithError(0, "normal shutdown")
 }
 
 
 //export goServerSendMessageStream
 func goServerSendMessageStream(buf *C.char, len uint64) {
-	
+	stream, err := quicSession.sess.OpenUniStream();
+	if err != nil {
+		panic(err)
+	}
+
+	stream.Write(C.GoBytes(unsafe.Pointer(buf), C.int(len)))
+	stream.Close()
 }
 
 //export goServerSendMessageDatagram
 func goServerSendMessageDatagram(buf *C.char, len uint64) {
-	// bufGoStr := C.GoStringN(buf, C.int(len))
-	bufGo:= C.GoBytes(unsafe.Pointer(buf), C.int(len))
-	sendDatagram(&datagram{0, bufGo})
+	if len <= 1200 {
+		bufGo:= C.GoBytes(unsafe.Pointer(buf), C.int(len))
+		sendDatagram(&datagram{0, bufGo})
+	} else {
+		goServerSendMessageStream(buf, len)
+	}
 }
 
 func main() {

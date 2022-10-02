@@ -24,4 +24,4 @@ add_custom_target( libgo_client ALL
 add_dependencies( quicgo_client libgo_client )
 
 target_link_directories( quicgo_client PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/go_impl )
-target_link_libraries( quicgo_client PUBLIC go_client )
+target_link_libraries( quicgo_client PUBLIC go_client fmt::fmt )

@@ -113,6 +113,8 @@ class Link
   static struct rtnl_link  * link;
 
   static int if_index;
+
+  static bool _init;
   
 public:
   
