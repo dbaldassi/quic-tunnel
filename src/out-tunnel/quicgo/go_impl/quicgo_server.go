@@ -27,8 +27,6 @@ import (
 	"github.com/lucas-clemente/quic-go/qlog"
 )
 
-// const addr = "localhost:4242"
-
 type datagram struct {
 	flowID uint64
 	data   []byte
@@ -36,28 +34,8 @@ type datagram struct {
 
 type Session struct {
 	sess quic.Connection
-
-	// readFlowsLock sync.RWMutex
-	// readFlows     map[uint64]*ReadFlow
+	wrapper *C.wrapper_t
 }
-
-// func (s *Session) getFlow(id uint64) *ReadFlow {
-// 	s.readFlowsLock.RLock()
-// 	defer s.readFlowsLock.RUnlock()
-
-// 	return s.readFlows[id]
-// }
-
-// func (s *Session) AcceptFlow(flowID uint64) (*ReadFlow, error) {
-// 	rf := &ReadFlow{
-// 		session: s,
-// 		buffer:  packetio.NewBuffer(),
-// 	}
-// 	s.readFlowsLock.Lock()
-// 	s.readFlows[flowID] = rf
-// 	s.readFlowsLock.Unlock()
-// 	return rf, nil
-// }
 
 type ReadFlow struct {
 	session *Session
@@ -112,9 +90,7 @@ func getFileLogWriter(path string) (io.WriteCloser, error) {
 }
 
 // GetQLOGWriter creates the QLOGDIR and returns the GetLogWriter callback
-func GetQLOGWriter() (func(perspective logging.Perspective, connID []byte) io.WriteCloser, error) {
-	qlogDir := os.Getenv("QLOGDIR")
-	fmt.Println("GetQLOG DIR")
+func GetQLOGWriter(qlogDir string, wrapper *C.wrapper_t) (func(perspective logging.Perspective, connID []byte) io.WriteCloser, error) {
 	if len(qlogDir) == 0 {
 		return nil, nil
 	}
@@ -130,12 +106,14 @@ func GetQLOGWriter() (func(perspective logging.Perspective, connID []byte) io.Wr
 	}
 	return func(_ logging.Perspective, connID []byte) io.WriteCloser {
 		path := fmt.Sprintf("%s/%x.qlog", strings.TrimRight(qlogDir, "/"), connID)
+		filename := fmt.Sprintf("%x.qlog", connID)
 		w, err := getFileLogWriter(path)
 		if err != nil {
 			log.Printf("failed to create qlog file %s: %v", path, err)
 			return nil
 		}
 		log.Printf("created qlog file: %s\n", path)
+		C.on_qlog_filename(wrapper, C.CString(filename), C.int(len(filename)))
 		return w
 	}, nil
 }
@@ -147,12 +125,12 @@ func sendDatagram(d *datagram) error {
 const streamDataPacketLength = 2048
 
 //export goServerStart
-func goServerStart(addr *C.char, datagrams bool, wrapper *C.wrapper_t) {
+func goServerStart(addr *C.char, datagrams bool, qlogDir *C.char, wrapper *C.wrapper_t) {
 	fmt.Println("Starting quic go server ")
 	quicConf := &quic.Config{
 		EnableDatagrams: true,
 	}
-	qlogWriter, err := GetQLOGWriter()
+	qlogWriter, err := GetQLOGWriter(C.GoString(qlogDir), wrapper)
 	if qlogWriter != nil {
 		quicConf.Tracer = qlog.NewTracer(qlogWriter)
 	}
@@ -166,7 +144,7 @@ func goServerStart(addr *C.char, datagrams bool, wrapper *C.wrapper_t) {
 		panic(err)
 	}
 
-	quicSession = &Session{ conn };
+	quicSession = &Session{ conn, wrapper };
 	
 	go func() {
 		for {
@@ -184,7 +162,7 @@ func goServerStart(addr *C.char, datagrams bool, wrapper *C.wrapper_t) {
 			for {				
 				n, err := stream.Read(buffer)
 				if err == io.EOF {
-					C.callback(wrapper, C.CString(string(buffer[:n])), C.int(n))
+					C.on_message_received(wrapper, C.CString(string(buffer[:n])), C.int(n))
 					break
 				} else if err != nil {
 					break
@@ -204,7 +182,7 @@ func goServerStart(addr *C.char, datagrams bool, wrapper *C.wrapper_t) {
 			}
 		}
 		msg:= string(message[:]) // TODO: optimize this copy
-		C.callback(wrapper, C.CString(msg), C.int(len(msg)))
+		C.on_message_received(wrapper, C.CString(msg), C.int(len(msg)))
 	}
 	fmt.Println("The end ?")	
 }

@@ -21,6 +21,8 @@ public:
   QuicClient() noexcept = default;
   ~QuicClient() = default;
 
+  virtual void set_qlog_filename(std::string filename) noexcept = 0;
+  
   /**
    * @brief Get the path to the qlog file
    * @return The path to the qlog file

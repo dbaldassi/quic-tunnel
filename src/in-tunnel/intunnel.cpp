@@ -128,7 +128,7 @@ std::string InTunnel::get_qlog_file()
 {
   std::ostringstream oss;
   oss << _quic_client->get_qlog_path() << "/" << _quic_client->get_qlog_filename();
-
+  
   return oss.str();
 }
 

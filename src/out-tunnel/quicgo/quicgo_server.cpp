@@ -7,6 +7,7 @@ QuicGoServer::QuicGoServer(std::string host, uint16_t port, out::UdpSocket * udp
   : _datagrams(true), _host(std::move(host)), _port(port), _udp_socket(udp_socket)
 {
   assert(udp_socket != nullptr);
+  _qlog_dir = QuicServer::DEFAULT_QLOG_PATH;
   udp_socket->set_callback(this);
 }
 
@@ -15,7 +16,10 @@ void QuicGoServer::start()
   _udp_socket->start();
 
   std::string addr = _host + ":" + std::to_string(_port);
-  goServerStart(const_cast<char*>(addr.c_str()), _datagrams, (void**)this);
+  goServerStart(const_cast<char*>(addr.c_str()),
+		_datagrams,
+		const_cast<char*>(_qlog_dir.c_str()),
+		(void**)this);
 }
 
 void QuicGoServer::stop()
@@ -25,22 +29,23 @@ void QuicGoServer::stop()
 
 void QuicGoServer::set_qlog_filename(std::string file_name)
 {
-
+  _qlog_filename = std::move(file_name);
 }
 
 std::string_view QuicGoServer::get_qlog_path() const noexcept
 {
-
+  return _qlog_dir;
 }
 
 std::string_view QuicGoServer::get_qlog_filename() const noexcept
 {
-
+  return _qlog_filename;
 }
 
 bool QuicGoServer::set_datagrams(bool enable)
 {
   _datagrams = enable;
+  return true;
 }
 
 bool QuicGoServer::set_cc(std::string_view cc) noexcept

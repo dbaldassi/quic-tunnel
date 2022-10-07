@@ -10,7 +10,11 @@
 class QuicGoClient final : public QuicClient
 {
   std::string _host;
+  std::string _qlog_dir;
+  std::string _qlog_filename;
   int         _port;
+  bool        _datagrams;
+  
 public:
   static constexpr const char * DEFAULT_QLOG_PATH = "tunnel-in-logs";
   
@@ -18,6 +22,7 @@ public:
   ~QuicGoClient() = default;
 
   // -- quic client interface
+  void set_qlog_filename(std::string filename) noexcept override;
   std::string_view get_qlog_path()   const noexcept override;
   std::string_view get_qlog_filename() const noexcept override;
 

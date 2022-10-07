@@ -15,6 +15,8 @@ class QuicGoServer final : public QuicServer, public out::UdpSocketCallback
   std::string      _host;
   uint16_t         _port;
   out::UdpSocket * _udp_socket;
+  std::string      _qlog_dir;
+  std::string      _qlog_filename;
   
 public:
   QuicGoServer(std::string host, uint16_t port, out::UdpSocket * udp_socket) noexcept;

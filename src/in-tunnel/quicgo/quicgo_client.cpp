@@ -1,19 +1,27 @@
 #include "quicgo_client.h"
 #include "go_impl/libgo_client.h"
 
+#include "fmt/core.h"
+
 QuicGoClient::QuicGoClient(std::string host, int port) noexcept
-  : _host(std::move(host)), _port(port)
+  : _host(std::move(host)), _port(port), _datagrams(true)
 {
+  _qlog_dir = QuicClient::DEFAULT_QLOG_PATH;
+}
+
+void QuicGoClient::set_qlog_filename(std::string filename) noexcept
+{
+  _qlog_filename = std::move(filename);
 }
 
 std::string_view QuicGoClient::get_qlog_path() const noexcept
 {
-
+  return _qlog_dir;
 }
 
 std::string_view QuicGoClient::get_qlog_filename() const noexcept
 {
-
+  return _qlog_filename;
 }
 
 bool QuicGoClient::set_cc(std::string_view cc) noexcept
@@ -24,7 +32,10 @@ bool QuicGoClient::set_cc(std::string_view cc) noexcept
 void QuicGoClient::start()
 {
   std::string addr = _host + ":" + std::to_string(_port);
-  goClientStart(const_cast<char*>(addr.c_str()), true, (void **)this);
+  goClientStart(const_cast<char*>(addr.c_str()),
+		_datagrams,
+		const_cast<char*>(_qlog_dir.c_str()),
+		(void **)this);
 }
 
 void QuicGoClient::stop()

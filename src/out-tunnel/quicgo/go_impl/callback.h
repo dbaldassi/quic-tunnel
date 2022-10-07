@@ -7,7 +7,8 @@ extern "C" {
 
 	typedef void* wrapper_t;
 
-	void callback(wrapper_t*, const char*, int);
+	void on_message_received(wrapper_t*, const char*, int);
+	void on_qlog_filename(wrapper_t*, const char*, int);
 	
 #ifdef __cplusplus
 }
