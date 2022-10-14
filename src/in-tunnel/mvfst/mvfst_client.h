@@ -50,6 +50,9 @@ public:
 
   ~MvfstClient() = default;
 
+  static constexpr const char * IMPL_NAME = "mvfst";
+  static Capabilities get_capabilities();
+  
   void set_qlog_filename(std::string name) noexcept override { _qlog_file_name = std::move(name); };
   std::string_view get_qlog_path()     const noexcept { return _qlog_path; }
   std::string_view get_qlog_filename() const noexcept { return _qlog_file_name; }

@@ -3,6 +3,17 @@
 
 #include "fmt/core.h"
 
+Capabilities QuicGoClient::get_capabilities()
+{
+  Capabilities cap;
+
+  cap.cc.emplace_back("newreno");
+  cap.datagrams = true;
+  cap.impl = IMPL_NAME;
+  
+  return cap;
+}
+
 QuicGoClient::QuicGoClient(std::string host, int port) noexcept
   : _host(std::move(host)), _port(port), _datagrams(true)
 {

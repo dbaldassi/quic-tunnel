@@ -43,18 +43,44 @@ nlohmann::json StopServer::data() const
   return json{ { "url", url } };
 }
 
-nlohmann::json Capabilities::data() const
-{
-  json d = {
-	    
-  };
-
-  return d;
-}
-
 nlohmann::json Link::data() const
 {
   return json{};
+}
+
+nlohmann::json Capabilities::data() const
+{
+  json d = json{};
+  
+  if(!in_cap.empty()) {
+    std::vector<json> caps;
+
+    for(auto& cap : in_cap) {
+      json c;
+      c.emplace("impl", cap.impl);
+      c.emplace("cc", cap.cc);
+      c.emplace("datagrams", cap.datagrams);
+      caps.push_back(c);
+    }
+    
+    d.emplace("in_impls", caps);
+  }
+  
+  if(!out_cap.empty()) {
+    std::vector<json> caps;
+
+    for(auto& cap : out_cap) {
+      json c;
+      c.emplace("impl", cap.impl);
+      c.emplace("cc", cap.cc);
+      c.emplace("datagrams", cap.datagrams);
+      caps.push_back(c);
+    }
+    
+    d.emplace("out_impls", caps);
+  }
+  
+  return d;
 }
 
 }

@@ -25,3 +25,9 @@ std::unique_ptr<QuicServer> QuicServerBuilder::create() const
 
   return nullptr;
 }
+
+void QuicServerBuilder::get_capabilities(std::vector<Capabilities>& cap)
+{
+  cap.push_back(MvfstServer::get_capabilities());
+  cap.push_back(QuicGoServer::get_capabilities());
+}

@@ -12,6 +12,22 @@ MvfstClient::MvfstClient(std::string_view host, uint16_t port, std::string qlog_
 {
 }
 
+Capabilities MvfstClient::get_capabilities()
+{
+  Capabilities cap;
+  cap.cc.emplace_back("newreno");
+  cap.cc.emplace_back("cubic");
+  cap.cc.emplace_back("copa");
+  cap.cc.emplace_back("bbr");
+  cap.cc.emplace_back("none");
+
+  cap.datagrams = true;
+  
+  cap.impl = IMPL_NAME;
+
+  return cap;
+}
+
 void MvfstClient::start()
 {
   auto evb = _network_thread.getEventBase();

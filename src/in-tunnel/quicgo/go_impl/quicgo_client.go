@@ -1,7 +1,7 @@
 package main
 
 /*
-#cgo CPPFLAGS: -Wno-overflow -Wno-write-strings
+#cgo CPPFLAGS: -Wno-overflow -Wno-write-strings -I../../..
 #include "callback.h"
 #include <stdlib.h>
 */

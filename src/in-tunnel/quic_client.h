@@ -7,6 +7,8 @@
 #include <optional>
 #include <memory>
 
+#include "capabilities.h"
+
 class QuicClient
 {
 public:
@@ -76,6 +78,8 @@ class QuicClientBuilder
 public:
   enum class QuicImplementation { MVFST, QUICGO };
 
+  static void get_capabilities(std::vector<Capabilities>& cap);
+  
   std::string        host; // Quic Server address
   uint16_t           port; // Quic server port
   QuicImplementation impl; // Quic implementation

@@ -3,6 +3,7 @@
 target_sources( quic-tunnel PRIVATE    
   main.cpp
 
+  capabilities.h
   qlogfile.h
   random_generator.h
   )

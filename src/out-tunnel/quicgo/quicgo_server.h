@@ -19,6 +19,9 @@ class QuicGoServer final : public QuicServer, public out::UdpSocketCallback
   std::string      _qlog_filename;
   
 public:
+  static constexpr const char * IMPL_NAME = "quicgo";
+  static Capabilities get_capabilities();
+  
   QuicGoServer(std::string host, uint16_t port, out::UdpSocket * udp_socket) noexcept;
   ~QuicGoServer() override = default;
 

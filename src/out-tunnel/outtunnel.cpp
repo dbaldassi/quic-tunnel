@@ -33,6 +33,7 @@ RandomGenerator OutTunnel::_random_generator = random_sequence();
 // Mvfst //////////////////////////////////////////////////////////////////////
 
 OutTunnel::OutTunnel(int id,
+		     std::string_view impl,
 		     std::string_view server_addr,
 		     uint16_t server_port,
 		     uint16_t out_port)
@@ -41,11 +42,15 @@ OutTunnel::OutTunnel(int id,
     _udp_socket(server_addr.data(), out_port),
     _quic_server(nullptr)
 {
+  using namespace std::string_view_literals;
+  
   QuicServerBuilder builder;
-  builder.impl = QuicServerBuilder::QuicImplementation::QUICGO;
   builder.host = "0.0.0.0";
-  builder.port = 8888;
+  builder.port = server_port;
   builder.udp_socket = &_udp_socket;
+
+  if(impl == "quicgo"sv)     builder.impl = QuicServerBuilder::QuicImplementation::QUICGO;
+  else if(impl == "mvfst"sv) builder.impl = QuicServerBuilder::QuicImplementation::MVFST;
 
   _quic_server = builder.create();
 }
@@ -84,16 +89,22 @@ void OutTunnel::set_datagrams(bool enable)
   _quic_server->set_datagrams(enable);
 }
 
-std::shared_ptr<OutTunnel> OutTunnel::create(std::string_view server_addr,
+std::shared_ptr<OutTunnel> OutTunnel::create(std::string_view impl,
+					     std::string_view server_addr,
 					     uint16_t server_port,
 					     uint16_t out_port)
 {
   auto id     = _random_generator();
   if(id == -1) return nullptr;
   
-  auto server = std::make_shared<OutTunnel>(id, server_addr, server_port, out_port);
+  auto server = std::make_shared<OutTunnel>(id, impl, server_addr, server_port, out_port);
 
   sessions[id] = server;
   
   return server;
+}
+
+void OutTunnel::get_capabilities(std::vector<Capabilities>& impls)
+{
+  QuicServerBuilder::get_capabilities(impls);
 }

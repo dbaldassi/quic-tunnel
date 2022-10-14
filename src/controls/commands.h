@@ -108,6 +108,18 @@ public:
   ResponsePtr run() override;
 };
 
+// Impl ///////////////////////////////////////////////////////////////////////
+
+class Capabilities : public Command
+{
+public:
+
+  bool out_requested = false;
+  bool in_requested = false;
+  
+  ResponsePtr run() override;
+};
+
 }
 
 #endif /* COMMANDS_H */

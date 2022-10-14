@@ -80,9 +80,12 @@ class MvfstServer : public QuicServer
   
 public:
   static constexpr const char * DEFAULT_QLOG_PATH = "tunnel-out-logs";
+  static constexpr const char * IMPL_NAME = "mvfst";
   
   explicit MvfstServer(const std::string& host, uint16_t port, out::UdpSocket * udp_socket);
 
+  static Capabilities get_capabilities();
+  
   void set_qlog_filename(std::string file_name) override;
   
   void start() override;

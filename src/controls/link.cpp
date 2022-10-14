@@ -108,7 +108,7 @@ bool Link::set_limit(std::chrono::milliseconds delay, bit::KiloBits rate,
   rtnl_netem_set_delay(qnetem, delay_us.count());
   if(loss.has_value()) {
     fmt::print("Set loss to {} \n", *loss);
-    rtnl_netem_set_loss(qnetem, *loss);
+    rtnl_netem_set_loss(qnetem, *loss * (UINT_MAX / 1000));
   }
   if(duplicates.has_value()) {
     fmt::print("Set duplicates to {} \n", *duplicates);

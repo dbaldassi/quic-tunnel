@@ -1,6 +1,7 @@
 #include <iostream>
 #include <random>
 #include <sstream>
+#include <string>
 
 #include <unistd.h>
 #include <csignal>
@@ -38,14 +39,18 @@ RandomGenerator InTunnel::_random_generator = random_sequence();
 
 // Mvfstclient ////////////////////////////////////////////////////////////////
 
-InTunnel::InTunnel(int id, std::string_view server_addr, uint16_t server_port)
+InTunnel::InTunnel(int id, std::string_view impl, std::string_view server_addr, uint16_t server_port)
   : _id(id), _quic_client(nullptr), _datagrams(true),
     _external_file_transfer(false), _multiplexed_file_transfer(false)
 {
+  using namespace std::literals::string_view_literals;
+  
   QuicClientBuilder builder;
   builder.host = server_addr;
   builder.port = server_port;
-  builder.impl = QuicClientBuilder::QuicImplementation::QUICGO;
+
+  if(impl == "quicgo"sv)     builder.impl = QuicClientBuilder::QuicImplementation::QUICGO;
+  else if(impl == "mvfst"sv) builder.impl = QuicClientBuilder::QuicImplementation::MVFST;
   
   _quic_client = builder.create();
 }
@@ -143,17 +148,23 @@ void InTunnel::enable_multiplexed_file_transfer()
   _multiplexed_file_transfer = true;
 }
 
-std::shared_ptr<InTunnel> InTunnel::create(std::string_view server_addr,
-						     uint16_t server_port)
+std::shared_ptr<InTunnel> InTunnel::create(std::string_view impl,
+					   std::string_view server_addr,
+					   uint16_t server_port)
 {
   fmt::print("Create new mvfst client \n");
   
   auto id     = _random_generator();
   if(id == -1) return nullptr;
   
-  auto client = std::make_shared<InTunnel>(id, server_addr, server_port);
+  auto client = std::make_shared<InTunnel>(id, impl, server_addr, server_port);
 
   sessions[id] = client;
   
   return client;
+}
+
+void InTunnel::get_capabilities(std::vector<Capabilities>& cap)
+{
+  QuicClientBuilder::get_capabilities(cap);
 }

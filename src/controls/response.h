@@ -2,7 +2,10 @@
 #define RESPONSE_H
 
 #include <optional>
+#include <map>
 #include <nlohmann/json_fwd.hpp>
+
+#include "capabilities.h"
 
 namespace response
 {
@@ -17,6 +20,8 @@ struct Response
   virtual ~Response() = default;
 };
 
+// error //////////////////////////////////////////////////////////////////////
+
 struct Error : public Response
 {
   std::string message;
@@ -24,6 +29,8 @@ struct Error : public Response
   nlohmann::json data() const override;
   std::string type() const override { return "error"; }
 };
+
+// StartClient ////////////////////////////////////////////////////////////////
 
 struct StartClient : public Response
 {
@@ -34,12 +41,16 @@ struct StartClient : public Response
   nlohmann::json data() const override;
 };
 
+// StopClient /////////////////////////////////////////////////////////////////
+
 struct StopClient : public Response
 {
   std::string url;
   
   nlohmann::json data() const override;
 };
+
+// Start Server ///////////////////////////////////////////////////////////////
 
 struct StartServer : public Response
 {
@@ -48,23 +59,28 @@ struct StartServer : public Response
   nlohmann::json data() const override;
 };
 
+// StopServer /////////////////////////////////////////////////////////////////
+
 struct StopServer : public Response
 {
   std::string url;
   nlohmann::json data() const override;
 };
 
-struct Capabilities : public Response
-{
-  std::string impl_name;
-  std::vector<std::string> cc;
-  bool datagram;
-  
-  nlohmann::json data() const override;
-};
+// Link ///////////////////////////////////////////////////////////////////////
 
 struct Link : public Response
 {
+  nlohmann::json data() const override;
+};
+
+// Impl ///////////////////////////////////////////////////////////////////////
+
+struct Capabilities : public Response
+{
+  std::vector<::Capabilities> in_cap;
+  std::vector<::Capabilities> out_cap;
+
   nlohmann::json data() const override;
 };
 

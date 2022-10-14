@@ -19,3 +19,9 @@ std::unique_ptr<QuicClient> QuicClientBuilder::create() const
 
   return nullptr;
 }
+
+void QuicClientBuilder::get_capabilities(std::vector<Capabilities>& cap)
+{
+  cap.push_back(MvfstClient::get_capabilities());
+  cap.push_back(QuicGoClient::get_capabilities());
+}

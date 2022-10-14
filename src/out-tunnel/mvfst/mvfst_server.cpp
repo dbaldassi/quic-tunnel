@@ -92,6 +92,22 @@ MvfstTransportFactory::make(folly::EventBase* evb,
 
 // QuicServer /////////////////////////////////////////////////////////////////
 
+Capabilities MvfstServer::get_capabilities()
+{
+  Capabilities cap;
+  cap.impl = IMPL_NAME;
+  
+  cap.cc.emplace_back("newreno");
+  cap.cc.emplace_back("bbr");
+  cap.cc.emplace_back("copa");
+  cap.cc.emplace_back("cubic");
+  cap.cc.emplace_back("none");
+
+  cap.datagrams = true;
+
+  return cap;
+}
+
 MvfstServer::MvfstServer(const std::string& host, uint16_t port, out::UdpSocket * udp_socket)
   : _host(host), _port(port), _server(quic::QuicServer::createQuicServer()), _udp_socket(udp_socket)
 {

@@ -4,9 +4,11 @@
 #include <string_view>
 #include <unordered_map>
 #include <memory>
+#include <vector>
 
 #include "udp_socket.h"
 #include "random_generator.h"
+#include "capabilities.h"
 
 class QuicClient;
 
@@ -40,7 +42,7 @@ public:
    * @param server_addr Address of the server (ipv4 or ipv6)
    * @param server_port Port of the quic server
    */
-  InTunnel(int id, std::string_view server_addr, uint16_t server_port);
+  InTunnel(int id, std::string_view impl, std::string_view server_addr, uint16_t server_port);
 
   ~InTunnel() noexcept;
 
@@ -102,7 +104,9 @@ public:
    * @brief Create a InTunnel instance
    * @return The InTunnel instance as a shared ptr
    */
-  static std::shared_ptr<InTunnel> create(std::string_view server_addr, uint16_t server_port);
+  static std::shared_ptr<InTunnel> create(std::string_view impl, std::string_view server_addr, uint16_t server_port);
+
+  static void get_capabilities(std::vector<Capabilities>& cap);
 };
 
 #endif /* INTUNNEL_H */

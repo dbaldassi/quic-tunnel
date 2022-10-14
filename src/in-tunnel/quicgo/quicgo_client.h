@@ -17,6 +17,7 @@ class QuicGoClient final : public QuicClient
   
 public:
   static constexpr const char * DEFAULT_QLOG_PATH = "tunnel-in-logs";
+  static constexpr const char * IMPL_NAME = "quicgo";
   
   QuicGoClient(std::string host, int port) noexcept;
   ~QuicGoClient() = default;
@@ -33,6 +34,8 @@ public:
   void send_message_datagram(const char * buffer, size_t len) override;
 
   void on_received(const char* buf, uint64_t len);
+
+  static Capabilities get_capabilities();
 };
 
 #endif /* QUICGO_CLIENT_H */

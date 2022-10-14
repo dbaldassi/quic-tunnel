@@ -7,6 +7,8 @@
 #include "in-tunnel/intunnel.h"
 #include "out-tunnel/outtunnel.h"
 
+#include "fmt/core.h"
+
 namespace cmd
 {
 
@@ -15,7 +17,7 @@ namespace cmd
 std::unique_ptr<response::Response> StartClient::run()
 {
   // Create quic client
-  auto client = ::InTunnel::create(quic_host, quic_port);
+  auto client = ::InTunnel::create(impl, quic_host, quic_port);
 
   // Ensure it is created
   if(client == nullptr) {
@@ -71,6 +73,8 @@ ResponsePtr StopClient::run()
     
     resp->url += "?file=" + client->get_qlog_file();
 
+    fmt::print("-- > {}\n", resp->url);
+    
     client = nullptr;
 
     return resp;
@@ -89,7 +93,7 @@ ResponsePtr StopClient::run()
 ResponsePtr StartServer::run()
 {
   // Create quic client
-  auto server = ::OutTunnel::create(addr_out, quic_port, port_out);
+  auto server = ::OutTunnel::create(impl, addr_out, quic_port, port_out);
   server->set_cc(cc);
   server->set_datagrams(datagrams);
   
@@ -179,5 +183,18 @@ ResponsePtr Link::run()
   
   return resp;
 }
+
+// Impl ///////////////////////////////////////////////////////////////////////
+ResponsePtr Capabilities::run()
+{    
+  auto resp = std::make_unique<response::Capabilities>();
+  resp->trans_id = _trans_id;
+  
+  if(in_requested)  InTunnel::get_capabilities(resp->in_cap);
+  if(out_requested) OutTunnel::get_capabilities(resp->out_cap);
+  
+  return resp;
+}
+
 
 }

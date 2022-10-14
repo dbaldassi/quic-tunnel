@@ -5,6 +5,7 @@
 #include <memory>
 #include <optional>
 
+#include "capabilities.h"
 #include "udp_socket.h"
 
 /**
@@ -71,6 +72,8 @@ class QuicServerBuilder
 {
 public:
   enum class QuicImplementation { MVFST, QUICGO };
+
+  static void get_capabilities(std::vector<Capabilities>& capabilities);
   
   std::string host; // ip address the server will bind to
   uint16_t port; // port the server will listen to

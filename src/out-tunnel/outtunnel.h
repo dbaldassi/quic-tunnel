@@ -4,9 +4,11 @@
 #include <string_view>
 #include <unordered_map>
 #include <memory>
+#include <vector>
 
 #include "out-tunnel/udp_socket.h"
 #include "random_generator.h"
+#include "capabilities.h"
 
 class QuicServer;
 
@@ -24,7 +26,7 @@ public:
   
   static std::unordered_map<int, std::shared_ptr<OutTunnel>> sessions;
 
-  OutTunnel(int id, std::string_view server_addr, uint16_t server_port, uint16_t out_port);
+  OutTunnel(int id, std::string_view impl, std::string_view server_addr, uint16_t server_port, uint16_t out_port);
   ~OutTunnel() noexcept;
     
   int id() const { return _id; }
@@ -37,9 +39,12 @@ public:
   void set_cc(std::string_view cc);
   std::string get_qlog_file();
 
-  static std::shared_ptr<OutTunnel> create(std::string_view server_addr,
+  static std::shared_ptr<OutTunnel> create(std::string_view impl,
+					   std::string_view server_addr,
 					   uint16_t server_port,
 					   uint16_t out_port);
+
+  static void get_capabilities(std::vector<Capabilities>& impls);
 };
 
 #endif /* OUTTUNNEL_H */

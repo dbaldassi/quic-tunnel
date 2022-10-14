@@ -3,6 +3,16 @@
 #include <cassert>
 // #include <fmt/core.h>
 
+Capabilities QuicGoServer::get_capabilities()
+{
+  Capabilities cap;
+  cap.impl = IMPL_NAME;
+  cap.cc.emplace_back("newreno");
+  cap.datagrams = true;
+
+  return cap;
+}
+
 QuicGoServer::QuicGoServer(std::string host, uint16_t port, out::UdpSocket * udp_socket) noexcept
   : _datagrams(true), _host(std::move(host)), _port(port), _udp_socket(udp_socket)
 {
