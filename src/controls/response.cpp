@@ -83,4 +83,15 @@ nlohmann::json Capabilities::data() const
   return d;
 }
 
+nlohmann::json UploadRTCStats::data() const
+{
+  return json{};
+}
+
+nlohmann::json GetStats::data() const
+{
+  return json{ { "url", url } };
+}
+
+
 }

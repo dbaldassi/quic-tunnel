@@ -18,6 +18,7 @@ class OutTunnel
   int _out_port;
   out::UdpSocket _udp_socket;
   std::unique_ptr<QuicServer> _quic_server;
+  bool _external_file_transfer;
 
   static RandomGenerator _random_generator;
 public:
@@ -37,6 +38,7 @@ public:
   void stop();
 
   void set_cc(std::string_view cc);
+  void set_external_file_transfer(bool enable) noexcept { _external_file_transfer = enable; }
   std::string get_qlog_file();
 
   static std::shared_ptr<OutTunnel> create(std::string_view impl,

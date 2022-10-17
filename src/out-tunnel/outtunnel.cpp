@@ -1,6 +1,7 @@
 #include <iostream>
 #include <random>
 #include <sstream>
+#include <csignal>
 
 #include <fmt/core.h>
 
@@ -40,7 +41,8 @@ OutTunnel::OutTunnel(int id,
   : _id{id},
     _out_port{out_port},
     _udp_socket(server_addr.data(), out_port),
-    _quic_server(nullptr)
+    _quic_server(nullptr),
+    _external_file_transfer(false)
 {
   using namespace std::string_view_literals;
   
@@ -58,9 +60,70 @@ OutTunnel::OutTunnel(int id,
 OutTunnel::~OutTunnel() noexcept
 {}
 
+int run_tcpdump(const char* if_env_name, const char* file_name)
+{
+  // first get the interface name
+  if(const char* interface = std::getenv(if_env_name)) {
+    // Fork process
+    pid_t pid = fork();
+    // return if parent process
+    if(pid != 0) return pid;
+    
+    fmt::print("Starting tcpdump for quic output\n");
+
+    int fd[2]; // pipe file descriptor. 0: rx 1: tx
+
+    // open pipe
+    if(pipe(fd) == -1) {
+      fmt::print(stderr, "Pipe failed\n");
+      return -1;
+    }
+    
+    // fork the child process to pipe tcpdump output into tcpdumpbitrate.py
+    pid_t child_pid = fork();
+    if(child_pid == 0) {
+      // close reading end of the pipe
+      close(fd[0]);
+      // Redirect standard output into writing end of the pipe
+      dup2(fd[1], STDOUT_FILENO);
+      // Close the pipe
+      close(fd[1]);
+      
+      // run tcpdump
+      execl("/usr/bin/tcpdump", "/usr/bin/tcpdump",
+	    "-i", interface, "-l", "-e", "-n", NULL);
+    }
+    else {
+      // Close writing end of the pipe
+      close(fd[1]);
+      // Redirect reading end of the pipe into stdin
+      dup2(fd[0], STDIN_FILENO);
+      // close pipe
+      close(fd[0]);
+
+      // run tcpdumpbitrate.py script
+      execl("/usr/local/bin/tcpdumpbitrate.py", "/usr/local/bin/tcpdumpbitrate.py", file_name, NULL);
+    }
+  }
+  
+  return -1;
+}
+
 void OutTunnel::run()
-{    
+{
+  int quic_pid = run_tcpdump("IFQUIC", "quic.csv");
+  if(quic_pid == 0) return;
+
+  int file_pid = -1;
+  if(_external_file_transfer) {
+    file_pid = run_tcpdump("IFSCP", "file.csv");
+    if(file_pid == 0) return;
+  }
+  
   _quic_server->start();
+
+  if(quic_pid > 0) kill(quic_pid, SIGTERM);
+  if(file_pid > 0) kill(file_pid, SIGTERM);
 }
 
 void OutTunnel::stop()

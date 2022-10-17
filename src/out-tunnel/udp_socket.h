@@ -36,6 +36,7 @@ class UdpSocket
   socklen_t          _addr_len;
 
   std::thread        _recv_thread;
+  bool _start;
   
 public:
   explicit UdpSocket(const char* hostname, int port);

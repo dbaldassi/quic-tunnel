@@ -17,6 +17,8 @@ JsonParser::JsonParser() noexcept
   _request.emplace("stopserver", [this](const json& d) { return parse_stop_server(d); });
   _request.emplace("link", [this](const json& d) { return parse_link(d); });
   _request.emplace("capabilities", [this](const json& d) { return parse_capabilities(d); });
+  _request.emplace("uploadstats", [this](const json& d) { return parse_upload_stats(d); });
+  _request.emplace("getstats", [this](const json& d) { return parse_getstats(d); });
 }
 
 JsonParser::CommandPtr JsonParser::parse_start_client(const json& data)
@@ -141,6 +143,43 @@ JsonParser::CommandPtr JsonParser::parse_capabilities(const json& data)
 
   if(auto out = data.find("out_requested"); out != data.end()) {
     cmd->out_requested = out->get<bool>();
+  }
+
+  return cmd;
+}
+
+JsonParser::CommandPtr JsonParser::parse_upload_stats(const json& data)
+{
+  auto cmd = std::make_unique<cmd::UploadRTCStats>();
+
+  using Point = cmd::UploadRTCStats::Point;
+  
+  if(auto bitrate = data.find("bitrate"); bitrate != data.end()) {
+    auto tmp_vec = bitrate->get<std::vector<json>>();
+    std::transform(tmp_vec.begin(), tmp_vec.end(), std::back_insert_iterator(cmd->bitrate),
+		   [](json& pt) { return Point{ pt["x"].get<int>(), pt["y"].get<int>() }; });
+  }
+
+  if(auto link = data.find("link"); link != data.end()) {
+    auto tmp_vec = link->get<std::vector<json>>();
+    
+    std::transform(tmp_vec.begin(), tmp_vec.end(), std::back_insert_iterator(cmd->link),
+		   [](json& pt) { return Point{ pt["x"].get<int>(), pt["y"].get<int>() }; });
+  }
+
+  return cmd;
+}
+
+JsonParser::CommandPtr JsonParser::parse_getstats(const json& data)
+{
+  auto cmd = std::make_unique<cmd::GetStats>();
+  
+  if(auto exp = data.find("exp_name"); exp != data.end()) {
+    cmd->exp_name = exp->get<std::string>();
+  }
+
+  if(auto qvis = data.find("qvis_file"); qvis != data.end()) {
+    cmd->qvis_file = qvis->get<std::string>();
   }
 
   return cmd;

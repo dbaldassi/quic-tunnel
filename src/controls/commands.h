@@ -2,6 +2,8 @@
 #define COMMANDS_H
 
 #include <memory>
+#include <vector>
+#include <string>
 #include <optional>
 
 namespace response
@@ -116,6 +118,31 @@ public:
 
   bool out_requested = false;
   bool in_requested = false;
+  
+  ResponsePtr run() override;
+};
+
+// Stats //////////////////////////////////////////////////////////////////////
+class UploadRTCStats : public Command
+{
+
+public:
+  struct Point {
+    int x;
+    int y;
+  };
+
+  std::vector<Point> link;
+  std::vector<Point> bitrate;
+  
+  ResponsePtr run() override;
+};
+
+class GetStats : public Command
+{
+public:
+  std::string exp_name;
+  std::optional<std::string> qvis_file;
   
   ResponsePtr run() override;
 };

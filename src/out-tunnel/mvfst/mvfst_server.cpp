@@ -144,7 +144,6 @@ void MvfstServer::start()
   folly::SocketAddress addr(_host.c_str(), _port);
   addr.setFromHostPort(_host, _port);
   _server->start(addr, 0);
-  _udp_socket->start();
   LOG(INFO) << "Quic out tunnel started at: " << addr.describe();
   _evb.loopForever();
   LOG(INFO) << "Quic Server stopped ";

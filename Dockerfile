@@ -19,14 +19,6 @@ RUN mkdir build
 
 WORKDIR build
 
-ADD tcpdumpbitrate.py .
-ADD tcpdump_file.sh .
-ADD tcpdump_quic_server.sh .
-
-RUN chmod +x tcpdumpbitrate.py
-RUN chmod +x tcpdump_file.sh
-RUN chmod +x tcpdump_quic_server.sh
-
 RUN cmake .. -DCMAKE_BUILD_TYPE=Release \
     -Dmvfst_DIR=/opt/mvfst/lib/cmake/mvfst \
     -Dfolly_DIR=/opt/mvfst/lib/cmake/folly \

@@ -84,6 +84,22 @@ struct Capabilities : public Response
   nlohmann::json data() const override;
 };
 
+// UploadStats ////////////////////////////////////////////////////////////////
+
+struct UploadRTCStats : public Response
+{
+  nlohmann::json data() const override;
+};
+
+// GetStats ///////////////////////////////////////////////////////////////////
+
+struct GetStats : public Response
+{
+  std::string url;
+  
+  nlohmann::json data() const override;
+};
+
 }
 
 

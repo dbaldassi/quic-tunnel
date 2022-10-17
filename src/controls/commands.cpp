@@ -1,4 +1,8 @@
 #include <thread>
+#include <fstream>
+#include <filesystem>
+
+#include <wait.h>
 
 #include "commands.h"
 #include "response.h"
@@ -96,6 +100,7 @@ ResponsePtr StartServer::run()
   auto server = ::OutTunnel::create(impl, addr_out, quic_port, port_out);
   server->set_cc(cc);
   server->set_datagrams(datagrams);
+  server->set_external_file_transfer(external_file_transfer);
   
   // Ensure it is created
   if(server == nullptr) {
@@ -196,5 +201,87 @@ ResponsePtr Capabilities::run()
   return resp;
 }
 
+// Stats //////////////////////////////////////////////////////////////////////
+
+ResponsePtr UploadRTCStats::run()
+{
+  auto resp = std::make_unique<response::UploadRTCStats>();
+  resp->trans_id = _trans_id;
+
+  // Write stats in a csv file, bitrate.csv
+  std::ofstream ofs("bitrate.csv");
+
+  if(!ofs.is_open()) {
+    auto resp = std::make_unique<response::Error>();
+    resp->trans_id = _trans_id;
+    resp->message = "Could not create rtc stats file";
+
+    return resp;
+  }
+  
+  for(size_t i = 0; i < bitrate.size(); ++i) {
+    ofs << bitrate[i].x << "," << bitrate[i].y << "," << link[i].y << std::endl;
+  }
+  
+  return resp;
+}
+
+namespace fs = std::filesystem;
+
+template<typename Dest, typename SrcFile>
+void move_files(Dest&& dst, SrcFile&& src)
+{
+  try {
+    fs::copy(src, dst);
+    fs::remove(src);
+  } catch (fs::filesystem_error& e) {
+    fmt::print("Could not copy file {} : {}", src, e.what());
+  }
+}
+
+template<typename Dest, typename SrcFile, typename... Files>
+void move_files(Dest&& dst, SrcFile&& src, Files&& ... others)
+{
+  try {
+    fs::copy(src, dst);
+    fs::remove(src);
+  } catch (fs::filesystem_error& e) {
+    fmt::print("Could not copy file {} : {}", src, e.what());
+  }
+  move_files(dst, std::forward<Files>(others)...);
+}
+
+ResponsePtr GetStats::run()
+{
+  // create results directory
+  fs::path results_path = fs::path{"result"}/exp_name;
+  fs::create_directory(results_path);
+
+  // copy stats files into results directory
+  move_files(results_path, "bitrate.csv", "quic.csv", "file.csv");
+  if(qvis_file.has_value()) move_files(results_path, *qvis_file);
+
+  // Generate csv curve from stats file
+  pid_t pid = fork();
+
+  if(pid == 0) {
+    chdir(results_path.c_str());
+    execlp("/usr/local/bin/show_csv.py", "/usr/local/bin/show_csv.py", exp_name.c_str(), "save", NULL);
+  }
+  else waitpid(pid, NULL, 0);
+  
+  // create response
+  auto resp = std::make_unique<response::GetStats>();
+  resp->trans_id = _trans_id;
+
+  if(const char * res_url = std::getenv("RESULT_URL")) {
+    resp->url = (res_url / results_path / (exp_name + ".png")).c_str();
+  }
+  else {
+    fmt::print("No RESULT_URL specified");
+  }
+  
+  return resp;
+}
 
 }

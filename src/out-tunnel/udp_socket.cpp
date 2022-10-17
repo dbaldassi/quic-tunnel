@@ -32,13 +32,16 @@ UdpSocket::UdpSocket(const char* hostname, int port) : _port(port), _socket(-1),
   
   if(setsockopt(_socket, SOL_SOCKET, SO_RCVTIMEO, &optval, sizeof(optval)) < 0)
     perror("Could not set timeout");
+
+  _start = false;
 }
 
 void UdpSocket::start()
 {
+  _start = true;
   _recv_thread = std::thread([this](){
     struct sockaddr_in addr_tmp;
-    socklen_t          slen_tmp;
+    socklen_t          slen_tmp = sizeof(addr_tmp);
 
     while(true) {			       
       auto rlen = recvfrom(_socket, _buf, MAX_BUF_LEN, 0,
@@ -77,6 +80,8 @@ void UdpSocket::send(const char *buf, size_t len)
 
     len -= buf_len;
   }
+
+  if(!_start) start();
 }
 
 void UdpSocket::close()
@@ -87,6 +92,7 @@ void UdpSocket::close()
     _socket = -1;
     _recv_thread.join();
     puts("Thread is joined");
+    _start = false;
   }
 }
 

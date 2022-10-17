@@ -32,6 +32,8 @@ private:
   CommandPtr parse_stop_server(const nlohmann::json& data);
   CommandPtr parse_capabilities(const nlohmann::json& data);
   CommandPtr parse_link(const nlohmann::json& data);
+  CommandPtr parse_upload_stats(const nlohmann::json& data);
+  CommandPtr parse_getstats(const nlohmann::json& data);
   
 public:				    
   JsonParser() noexcept;
