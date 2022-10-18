@@ -32,6 +32,7 @@ void QuicGoServer::start()
 
 void QuicGoServer::stop()
 {
+  _udp_socket->close();
   goServerStop();
 }
 
