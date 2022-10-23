@@ -197,7 +197,7 @@ func goServerStop() {
 func goServerSendMessageStream(buf *C.char, len uint64) {
 	stream, err := quicSession.sess.OpenUniStream();
 	if err != nil {
-		panic(err)
+		return;
 	}
 
 	stream.Write(C.GoBytes(unsafe.Pointer(buf), C.int(len)))
