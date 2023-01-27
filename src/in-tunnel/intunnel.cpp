@@ -44,13 +44,19 @@ InTunnel::InTunnel(int id, std::string_view impl, std::string_view server_addr, 
     _external_file_transfer(false), _multiplexed_file_transfer(false)
 {
   using namespace std::literals::string_view_literals;
+
+  allocate_in_port();
   
   QuicClientBuilder builder;
-  builder.host = server_addr;
-  builder.port = server_port;
-
+  builder.dst_host = server_addr;
+  builder.dst_port = server_port;
+  builder.src_port = _in_port;
+  
   if(impl == "quicgo"sv)     builder.impl = QuicClientBuilder::QuicImplementation::QUICGO;
   else if(impl == "mvfst"sv) builder.impl = QuicClientBuilder::QuicImplementation::MVFST;
+  else if(impl == "tcp"sv)   {
+    builder.impl = QuicClientBuilder::QuicImplementation::TCP;
+  }
   
   _quic_client = builder.create();
 }
@@ -84,8 +90,8 @@ void InTunnel::run()
     _udp_socket.open(_in_port);
   
     _quic_client->set_on_received_callback([this](const char* msg, size_t length) {
-					     _udp_socket.send_back(msg, length);
-					   });
+      _udp_socket.send_back(msg, length);
+    });
   
     _quic_client->start();
   
@@ -94,7 +100,7 @@ void InTunnel::run()
       if(len == -1) break;
 
       const char * buffer = _udp_socket.get_buffer();
-    
+      
       if(_datagrams) _quic_client->send_message_datagram(buffer, len);
       else _quic_client->send_message_stream(buffer, len);
     }
@@ -126,6 +132,7 @@ int InTunnel::allocate_in_port()
 void InTunnel::stop()
 {
   _udp_socket.close();
+  
   _quic_client->stop();
 }
 

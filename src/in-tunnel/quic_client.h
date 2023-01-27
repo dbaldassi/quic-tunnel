@@ -21,7 +21,7 @@ public:
   static constexpr const char * DEFAULT_QLOG_PATH = "tunnel-in-logs";
   
   QuicClient() noexcept = default;
-  ~QuicClient() = default;
+  virtual ~QuicClient() = default;
 
   virtual void set_qlog_filename(std::string filename) noexcept = 0;
   
@@ -76,12 +76,14 @@ public:
 class QuicClientBuilder
 {
 public:
-  enum class QuicImplementation { MVFST, QUICGO };
+  enum class QuicImplementation { MVFST, QUICGO, TCP, UDP };
 
   static void get_capabilities(std::vector<Capabilities>& cap);
   
-  std::string        host; // Quic Server address
-  uint16_t           port; // Quic server port
+  std::string        dst_host; // Quic Server address
+  uint16_t           dst_port; // Quic server port
+  std::string        src_host; // Quic client host
+  uint16_t           src_port; // Quic client port
   QuicImplementation impl; // Quic implementation
 
   std::optional<std::string> qlog_path; // Quic qlog file

@@ -90,7 +90,12 @@ nlohmann::json UploadRTCStats::data() const
 
 nlohmann::json GetStats::data() const
 {
-  return json{ { "url", url } };
+  json data = {
+    { "url", url },
+    { "tcp_url", tcp_url }
+  };
+  
+  return data;
 }
 
 

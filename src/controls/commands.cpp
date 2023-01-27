@@ -258,7 +258,7 @@ ResponsePtr GetStats::run()
   fs::create_directory(results_path);
 
   // copy stats files into results directory
-  move_files(results_path, "bitrate.csv", "quic.csv", "file.csv");
+  move_files(results_path, "bitrate.csv", "quic.csv", "file.csv", "sender-ss.csv", "result_tcp.png");
   if(qvis_file.has_value()) move_files(results_path, *qvis_file);
 
   // Generate csv curve from stats file
@@ -276,6 +276,7 @@ ResponsePtr GetStats::run()
 
   if(const char * res_url = std::getenv("RESULT_URL")) {
     resp->url = (res_url / results_path / (exp_name + ".png")).c_str();
+    resp->tcp_url = (res_url / results_path / "result_tcp.png").c_str();
   }
   else {
     fmt::print("No RESULT_URL specified");

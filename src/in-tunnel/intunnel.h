@@ -29,6 +29,8 @@ class InTunnel
 
   std::string _scp_file_url; // URL of the file to download with SCP syntax user@host:path/to/file
 
+  bool _with_udp_socket;
+  
   static RandomGenerator _random_generator; // Random generator to generate the session id
 public:
   static constexpr auto MAX_NUMBER_SESSION = 5; // Max InTunnel sessions

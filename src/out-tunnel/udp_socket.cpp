@@ -14,13 +14,16 @@ UdpSocket::UdpSocket(const char* hostname, int port) : _port(port), _socket(-1),
 {
   memset((char *)&_addr, 0, sizeof(_addr));
 
-  std::cout << hostname << "\n";
+  std::cout << "out::UdpSocket dst to " << hostname << " " << port << "\n";
   
   _host = gethostbyname(hostname);
   if(!_host) perror("Could not get host by name");
   else _socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     
-  if(_socket == -1) perror("Could not create UDP socket");
+  if(_socket == -1) {
+    perror("Could not create UDP socket");
+    std::exit(EXIT_FAILURE);
+  }
   
   _addr.sin_family = AF_INET;
   _addr.sin_port   = htons(_port);
@@ -43,11 +46,15 @@ void UdpSocket::start()
     struct sockaddr_in addr_tmp;
     socklen_t          slen_tmp = sizeof(addr_tmp);
 
-    while(true) {			       
+    while(true) {
+      // printf("recvfrom\n");
       auto rlen = recvfrom(_socket, _buf, MAX_BUF_LEN, 0,
 			   (struct sockaddr *) &addr_tmp, &slen_tmp);
 
+      // printf("rec_len: %ld\n", rlen);
+
       if(rlen == -1) {
+	perror("some error ? ");
 	if(_socket == -1) {
 	  puts("Closing UDP socket");
 	  return;
@@ -67,9 +74,12 @@ void UdpSocket::start()
 void UdpSocket::send(const char *buf, size_t len)
 {
   constexpr size_t SIZE = 2048;
+
+  if(_socket == -1) return;
   
   while(len > 0) {
     auto buf_len = std::min(SIZE, len);
+    // printf("send_len: %ld\n", buf_len);
     
     auto l = sendto(_socket, buf, buf_len, 0, (struct sockaddr *) &_addr, sizeof(_addr));
     
@@ -90,8 +100,12 @@ void UdpSocket::close()
     puts("Try closing UDP socket");
     ::close(_socket);
     _socket = -1;
-    _recv_thread.join();
-    puts("Thread is joined");
+
+    if(_recv_thread.joinable()) {
+      _recv_thread.join();
+      puts("Thread is joined");
+    }
+    
     _start = false;
   }
 }

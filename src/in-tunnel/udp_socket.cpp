@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include <cstdlib>
 
 #include <string.h>
 #include <sys/time.h>
@@ -35,9 +36,11 @@ void UdpSocket::open(int port)
   
   if(_socket == -1) {
     perror("Could not create UDP socket");
+    std::exit(EXIT_FAILURE);
   }
   else if(bind(_socket, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
     perror("Could not bind UDP socket");
+    std::exit(EXIT_FAILURE);
   }
 }
 
@@ -51,7 +54,7 @@ ssize_t UdpSocket::recv() noexcept
   
   do {
     rec_len = recvfrom(_socket, _buf, MAX_BUF_LEN, 0, (struct sockaddr*)&addr, &slen);
-
+    
     if(rec_len == -1) {
       if(_socket == -1) {
 	puts("Closing UDP socket");

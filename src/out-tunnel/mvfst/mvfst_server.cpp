@@ -143,7 +143,13 @@ void MvfstServer::start()
 {
   folly::SocketAddress addr(_host.c_str(), _port);
   addr.setFromHostPort(_host, _port);
+
+  auto settings = _server->getTransportSettings();
+  settings.defaultCongestionController = _cc;
+  _server->setTransportSettings(std::move(settings));
+  
   _server->start(addr, 0);
+  
   LOG(INFO) << "Quic out tunnel started at: " << addr.describe();
   _evb.loopForever();
   LOG(INFO) << "Quic Server stopped ";

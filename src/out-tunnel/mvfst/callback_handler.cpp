@@ -117,6 +117,8 @@ void CallbackHandler::readAvailable(quic::StreamId id) noexcept
   if(data.hasError()) {
     LOG(ERROR) << "Out Quic tunnel failed read from stream=" << id
 	       << ", error=" << (uint32_t)data.error();
+
+    return;
   }
 
   _queue_ids.push_front(id);
@@ -179,7 +181,12 @@ void CallbackHandler::onUdpMessage(const char * buffer, size_t len) noexcept
     // LOG(INFO) << "len: " << len << " " << quic::kMinMaxUDPPayload;
     if(!datagrams || len >= quic::kMinMaxUDPPayload) {
       // LOG(INFO) << "len: " << len;
-      auto id = _transport->createUnidirectionalStream().value();
+      auto r = _transport->createUnidirectionalStream();
+      if(r.hasError()) {
+	LOG(ERROR) << "In quic tunnel write chain error=" << uint32_t(r.error());
+	return;
+      }
+      auto id = r.value();
       auto res = _transport->writeChain(id, std::move(qbuf), true);
       if(res.hasError()) {
 	LOG(ERROR) << "In quic tunnel write chain error=" << uint32_t(res.error());

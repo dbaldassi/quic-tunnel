@@ -10,7 +10,7 @@ class QLog : public quic::FileQLogger
 public:
 
   explicit QLog(std::string_view path) noexcept
-    : quic::FileQLogger(Endpoint, "quic-tunnel", std::string(path)),
+    : quic::FileQLogger(Endpoint, quic::kHTTP3ProtocolType, std::string(path), true, false),
       _path(path)
   {}
 

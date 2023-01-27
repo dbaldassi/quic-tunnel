@@ -71,12 +71,14 @@ public:
 class QuicServerBuilder
 {
 public:
-  enum class QuicImplementation { MVFST, QUICGO };
+  enum class QuicImplementation { MVFST, QUICGO, TCP, UDP };
 
   static void get_capabilities(std::vector<Capabilities>& capabilities);
   
   std::string host; // ip address the server will bind to
   uint16_t port; // port the server will listen to
+  std::string dst_host;
+  uint16_t dst_port;
   QuicImplementation impl; // implementation of quic to use
   out::UdpSocket * udp_socket; // pointer to the out udp socket
 
