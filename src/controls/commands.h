@@ -129,11 +129,12 @@ class UploadRTCStats : public Command
 public:
   struct Point {
     int x;
-    int y;
+    int bitrate;
+    int link;
+    int fps;
   };
 
-  std::vector<Point> link;
-  std::vector<Point> bitrate;
+  std::vector<Point> stats;
   
   ResponsePtr run() override;
 };

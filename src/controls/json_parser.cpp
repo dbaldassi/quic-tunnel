@@ -154,17 +154,16 @@ JsonParser::CommandPtr JsonParser::parse_upload_stats(const json& data)
 
   using Point = cmd::UploadRTCStats::Point;
   
-  if(auto bitrate = data.find("bitrate"); bitrate != data.end()) {
+  if(auto bitrate = data.find("stats"); bitrate != data.end()) {
     auto tmp_vec = bitrate->get<std::vector<json>>();
-    std::transform(tmp_vec.begin(), tmp_vec.end(), std::back_insert_iterator(cmd->bitrate),
-		   [](json& pt) { return Point{ pt["x"].get<int>(), pt["y"].get<int>() }; });
-  }
-
-  if(auto link = data.find("link"); link != data.end()) {
-    auto tmp_vec = link->get<std::vector<json>>();
-    
-    std::transform(tmp_vec.begin(), tmp_vec.end(), std::back_insert_iterator(cmd->link),
-		   [](json& pt) { return Point{ pt["x"].get<int>(), pt["y"].get<int>() }; });
+    std::transform(tmp_vec.begin(), tmp_vec.end(), std::back_insert_iterator(cmd->stats),
+		   [](json& pt) {
+		     return Point{ pt["x"].get<int>(),
+		       pt["bitrate"].get<int>(),
+		       pt["link"].get<int>(),
+		       pt["fps"].get<int>()
+		     };
+    });
   }
 
   return cmd;

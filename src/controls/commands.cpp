@@ -219,8 +219,8 @@ ResponsePtr UploadRTCStats::run()
     return resp;
   }
   
-  for(size_t i = 0; i < bitrate.size(); ++i) {
-    ofs << bitrate[i].x << "," << bitrate[i].y << "," << link[i].y << std::endl;
+  for(auto& pt : stats) {
+    ofs << pt.x << "," << pt.bitrate << "," << pt.link << "," << pt.fps << std::endl;
   }
   
   return resp;
