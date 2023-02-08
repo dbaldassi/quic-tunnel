@@ -1,6 +1,6 @@
 build/
 mvfst/
-lib/
+go/
 build-linkanda/
 libgo*
 .dir-locals.el
