@@ -19,6 +19,9 @@ class TcpServer final : public QuicServer, public out::UdpSocketCallback
   int _tcp_socket;
   int _connfd;
   out::UdpSocket * _udp_socket;
+
+  int announce_len_ptr;
+  char announce_len[4];
   
   void setup_socat();
   void setup_ss();
@@ -34,6 +37,9 @@ public:
   std::string_view get_qlog_filename() const noexcept override { return dummy_file_name; }
   bool set_datagrams(bool) override { return false; }
   bool set_cc(std::string_view) noexcept override { return false; }
+  void receive_loop();
+  ssize_t get_announce_len(int start, const char* buf, size_t len);
+  
   static Capabilities get_capabilities();
 
   void onUdpMessage(const char * buffer, size_t len) noexcept override;

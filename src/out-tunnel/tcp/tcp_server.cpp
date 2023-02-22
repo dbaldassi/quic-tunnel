@@ -4,6 +4,7 @@
 #include <sstream>
 #include <wait.h>
 #include <cstring>
+#include <stdlib.h>
 
 #include <iostream>
 #include <linux/tcp.h>
@@ -62,10 +63,37 @@ void TcpServer::start()
 
   std::cout << "accepted tcp client " << _dst_host << ":" << _dst_port << "\n";
   
-  constexpr size_t MAX = 2048;
-  char buf[MAX];
+  receive_loop();
+}
 
+constexpr int ANNOUNCE_FIELD = 4;
+
+ssize_t TcpServer::get_announce_len(int start, const char* buf, size_t len)
+{
+  auto size = ANNOUNCE_FIELD - announce_len_ptr;
+
+  if(len - start < ANNOUNCE_FIELD) size -= (len - start);
+  
+  for(int i = start; i < start + size; ++i) {   
+    announce_len[announce_len_ptr] = buf[i];
+    ++announce_len_ptr;
+  }
+
+  if(announce_len_ptr == ANNOUNCE_FIELD) {
+    announce_len_ptr = 0;
+    return atoll(announce_len);
+  }
+  else return -1;
+}
+
+void TcpServer::receive_loop()
+{
+  constexpr size_t MAX = 2048;
+  char buf[MAX], pending_buf[MAX];
+  ssize_t pending_len = -1, pending_buf_size;
+  
   for(;;) {
+    int data_start = 0;
     bzero(buf, MAX);
 
     auto res = read(_connfd, buf, MAX);
@@ -76,7 +104,29 @@ void TcpServer::start()
       break;
     }
 
-    _udp_socket->send(buf, res);
+    while(res > 0) {
+      if(pending_len == -1) {
+	pending_len = pending_buf_size = get_announce_len(data_start, buf, res);
+	data_start += ANNOUNCE_FIELD;
+	res -= ANNOUNCE_FIELD;
+      }
+
+      if(res <= 0) continue;
+
+      int copy_len = std::min(pending_len, res);
+      memcpy(pending_buf, buf + data_start, copy_len);
+
+      pending_len -= copy_len;
+      res -= copy_len;
+      data_start += copy_len;
+
+      if(pending_len == 0) {
+	static int i = 0;
+	std::cout << i++ << " " << "Transmitting: " <<  pending_buf_size << "\n";
+	_udp_socket->send(pending_buf, pending_buf_size);
+	pending_len = -1;
+      }
+    }
   }
 }
 
@@ -116,7 +166,7 @@ void TcpServer::setup_ss()
     std::ostringstream param;
   
     param << _dst_host << ":" << _dst_port;
-
+    
     execl("/usr/local/bin/ss-output.sh", "/usr/local/bin/ss-output.sh", param.str().c_str(), NULL);
   }
 }
@@ -133,14 +183,14 @@ Capabilities TcpServer::get_capabilities()
   return cap;
 }
 
+#include <iostream>
 void TcpServer::onUdpMessage(const char *buffer, size_t len) noexcept
 {
-  // std::ostringstream oss;
-  // oss << buffer << "\n";
+  static size_t i = 0;
+  std::cout << i++ << " sent: " << len << std::endl;
 
-  // std::cout << "sending : " << len << "\n";
+  write(_connfd, std::to_string(len).c_str(), 4);
   
-  // write(_tcp_socket, oss.str().c_str(), len + 1);
   if(write(_connfd, buffer, len) < 0) {
     perror("Error writing tcp");
   }

@@ -12,6 +12,10 @@ class TcpClient : public QuicClient
 
   int _socket;
   
+private:
+  char announce_len[4];
+  int announce_len_ptr;
+  
 public:
 
   TcpClient(std::string dst_host, uint16_t dst_port, uint16_t src_port) noexcept
@@ -27,6 +31,9 @@ public:
   void stop() override;
   void send_message_stream(const char * buffer, size_t len) override;
   void send_message_datagram(const char * buffer, size_t len) override {}
+
+  void receive_loop();
+  ssize_t get_announce_len(int start, const char* buf, size_t len);
 
   static Capabilities get_capabilities();
 };
