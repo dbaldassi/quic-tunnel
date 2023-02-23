@@ -8,6 +8,7 @@ struct Capabilities
 {
   std::string impl;
   bool datagrams;
+  bool streams = true;
   std::vector<std::string> cc;
 };
 

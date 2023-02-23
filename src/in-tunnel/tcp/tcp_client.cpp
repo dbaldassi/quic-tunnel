@@ -123,7 +123,6 @@ Capabilities TcpClient::get_capabilities()
   return cap;
 }
 
-
 void TcpClient::send_message_stream(const char * buffer, size_t len)
 {
   write(_socket, std::to_string(len).c_str(), 4);

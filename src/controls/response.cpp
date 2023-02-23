@@ -59,6 +59,7 @@ nlohmann::json Capabilities::data() const
       json c;
       c.emplace("impl", cap.impl);
       c.emplace("cc", cap.cc);
+      c.emplace("streams", cap.streams);
       c.emplace("datagrams", cap.datagrams);
       caps.push_back(c);
     }
@@ -74,6 +75,7 @@ nlohmann::json Capabilities::data() const
       c.emplace("impl", cap.impl);
       c.emplace("cc", cap.cc);
       c.emplace("datagrams", cap.datagrams);
+      c.emplace("streams", cap.streams);
       caps.push_back(c);
     }
     

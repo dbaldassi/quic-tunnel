@@ -54,9 +54,8 @@ InTunnel::InTunnel(int id, std::string_view impl, std::string_view server_addr, 
   
   if(impl == "quicgo"sv)     builder.impl = QuicClientBuilder::QuicImplementation::QUICGO;
   else if(impl == "mvfst"sv) builder.impl = QuicClientBuilder::QuicImplementation::MVFST;
-  else if(impl == "tcp"sv)   {
-    builder.impl = QuicClientBuilder::QuicImplementation::TCP;
-  }
+  else if(impl == "tcp"sv)   builder.impl = QuicClientBuilder::QuicImplementation::TCP;
+  else if(impl == "udp"sv)   builder.impl = QuicClientBuilder::QuicImplementation::UDP;
   
   _quic_client = builder.create();
 }

@@ -11,6 +11,9 @@ target_sources( quic-tunnel PRIVATE
 
   tcp/tcp_client.cpp
   tcp/tcp_client.h
+
+  udp/udp_client.cpp
+  udp/udp_client.h
   )
 
 add_subdirectory( mvfst )
