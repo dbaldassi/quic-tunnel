@@ -197,6 +197,7 @@ func goServerStop() {
 func goServerSendMessageStream(buf *C.char, len uint64) {
 	stream, err := quicSession.sess.OpenUniStream();
 	if err != nil {
+		print(err)
 		return;
 	}
 

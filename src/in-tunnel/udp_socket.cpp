@@ -60,7 +60,7 @@ ssize_t UdpSocket::recv() noexcept
 	puts("Closing UDP socket");
 	return -1;
       }
-      if(errno == EAGAIN || errno == EWOULDBLOCK) {
+      if(errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
 	puts("Refreshing UDP socket");
       }
       else {

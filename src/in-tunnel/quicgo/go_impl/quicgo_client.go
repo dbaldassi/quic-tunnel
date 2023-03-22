@@ -156,6 +156,7 @@ func goClientStart(addr *C.char, datagrams bool, qlogDir *C.char, wrapper *C.wra
 					n, err := stream.Read(buffer)
 					if err == io.EOF {
 						exit = true
+						// print(n, "\n")
 						C.on_message_received(wrapper, C.CString(string(buffer[:n])), C.int(n))
 					} else if err != nil {
 						exit = true
