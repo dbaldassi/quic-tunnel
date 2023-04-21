@@ -105,6 +105,8 @@ void InTunnel::run()
     }
 
     if(pid != -1) kill(pid, SIGTERM);
+
+    _cv.notify_all();
   }
 }
 
@@ -131,6 +133,11 @@ int InTunnel::allocate_in_port()
 void InTunnel::stop()
 {
   _udp_socket.close();
+
+  {
+    std::unique_lock<std::mutex> lock(_cv_mutex);
+    _cv.wait(lock);
+  }
   
   _quic_client->stop();
 }

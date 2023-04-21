@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <memory>
 #include <vector>
+#include <condition_variable>
 
 #include "udp_socket.h"
 #include "random_generator.h"
@@ -30,6 +31,9 @@ class InTunnel
   std::string _scp_file_url; // URL of the file to download with SCP syntax user@host:path/to/file
 
   bool _with_udp_socket;
+
+  std::condition_variable _cv;
+  std::mutex _cv_mutex;
   
   static RandomGenerator _random_generator; // Random generator to generate the session id
 public:

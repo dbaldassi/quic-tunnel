@@ -258,6 +258,8 @@ void MvfstClient::readAvailable(quic::StreamId id) noexcept
   if(data.hasError()) {
     LOG(ERROR) << "In Quic tunnel failed read from stream=" << id
 	       << ", error=" << (uint32_t)data.error();
+
+    return;
   }
 
   auto copy = data->first->clone();
@@ -274,7 +276,6 @@ void MvfstClient::readAvailable(quic::StreamId id) noexcept
   // End of the stream
   // TODO: check why onStopSending is never called
   if(eof) {
-    LOG(INFO) << "Got eof";
     if(_on_received_callback) _on_received_callback(_recv_msg[id].c_str(), _recv_msg[id].size());
     _recv_msg.erase(id);
   }
