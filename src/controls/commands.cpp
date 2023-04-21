@@ -220,7 +220,15 @@ ResponsePtr UploadRTCStats::run()
   }
   
   for(auto& pt : stats) {
-    ofs << pt.x << "," << pt.bitrate << "," << pt.link << "," << pt.fps << std::endl;
+    ofs << pt.x << ","
+	<< pt.bitrate << ","
+	<< pt.link << ","
+	<< pt.fps << ","
+	<< pt.frame_decoded << ","
+	<< pt.frame_key_decoded << ","
+	<< pt.frame_dropped << ","
+	<< pt.frame_rendered 
+	<< std::endl;
   }
   
   return resp;
@@ -265,7 +273,7 @@ ResponsePtr GetStats::run()
   pid_t pid = fork();
 
   if(pid == 0) {
-    chdir(results_path.c_str());
+    [[maybe_unused]] auto _ = chdir(results_path.c_str());
     execlp("/usr/local/bin/show_csv.py", "/usr/local/bin/show_csv.py", exp_name.c_str(), "save", NULL);
   }
   else waitpid(pid, NULL, 0);

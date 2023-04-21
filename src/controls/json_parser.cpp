@@ -161,7 +161,11 @@ JsonParser::CommandPtr JsonParser::parse_upload_stats(const json& data)
 		     return Point{ pt["x"].get<int>(),
 		       pt["bitrate"].get<int>(),
 		       pt["link"].get<int>(),
-		       pt["fps"].get<int>()
+		       pt["fps"].get<int>(),
+		       pt["frameDropped"].get<int>(),
+		       pt["frameDecoded"].get<int>(),
+		       pt["keyFrameDecoded"].get<int>(),
+		       pt["frameRendered"].get<int>(),
 		     };
     });
   }

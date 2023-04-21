@@ -79,6 +79,20 @@ enum OptInd : uint8_t {
   HELP
 };
 
+InTunnel * __in__;
+OutTunnel * __out__;
+
+template<typename T>
+void onstop(int sig)
+{
+  if constexpr (std::is_same_v<InTunnel, T>) {
+    __in__->stop();
+  }
+  else {
+    __out__->stop();
+  }
+}
+
 using namespace std::string_literals;
 
 int main(int argc, char *argv[])
@@ -152,11 +166,20 @@ int main(int argc, char *argv[])
     InTunnel in(0, "mvfst", quic_server_host, quic_port);
     in.allocate_in_port();
     in.set_datagram(false);
+
+    __in__ = &in;
+    
+    signal(SIGINT, onstop<InTunnel>);
+    
     in.run();
   }
   else if(*mode == "server") {
     OutTunnel out(0, "mvfst", turn_addr, quic_port, turn_port);
     out.set_datagrams(false);
+
+    __out__ = &out;    
+    signal(SIGINT, onstop<OutTunnel>);
+    
     out.run();
   }
   else if(*mode == "websocket") {  

@@ -131,7 +131,11 @@ public:
     int x;
     int bitrate;
     int link;
-    int fps;
+    int fps;    
+    int frame_dropped = 0;
+    int frame_decoded = 0;
+    int frame_key_decoded = 0;
+    int frame_rendered = 0;
   };
 
   std::vector<Point> stats;
