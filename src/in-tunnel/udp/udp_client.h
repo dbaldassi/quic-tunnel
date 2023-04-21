@@ -7,8 +7,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <mutex>
-#include <condition_variable>
+#include <thread>
 
 class UdpClient : public QuicClient
 {
@@ -25,8 +24,7 @@ class UdpClient : public QuicClient
   
   static constexpr auto MAX_BUF_LEN = 2048u;
 
-  std::mutex              _stop_mutex;
-  std::condition_variable _stop_cv;
+  std::thread _recv_th;
   
 public:
   UdpClient(std::string dst_host, int dst_port, int src_port);

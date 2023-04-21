@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <mutex>
+#include <condition_variable>
 
 #include "quic_server.h"
 
@@ -21,6 +22,9 @@ class UdpServer final : public QuicServer, public out::UdpSocketCallback
 
   struct sockaddr_in _addr_other;
   socklen_t _len_addr_other;
+
+  std::mutex              _cv_mutex;
+  std::condition_variable _cv;
   
 public:
   

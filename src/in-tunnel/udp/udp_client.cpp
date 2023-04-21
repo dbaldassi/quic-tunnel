@@ -33,8 +33,6 @@ void UdpClient::recv()
     }
     else if(_on_received_callback) _on_received_callback(buffer, rlen);
   }
-
-  _stop_cv.notify_all();
 }
 
 void UdpClient::start()
@@ -57,7 +55,7 @@ void UdpClient::start()
   if(setsockopt(_socket, SOL_SOCKET, SO_RCVTIMEO, &optval, sizeof(optval)) < 0)
     perror("Could not set timeout");
 
-  std::thread([this](){ recv(); }).detach();
+  _recv_th = std::thread([this](){ recv(); });
 }
 
 void UdpClient::stop()
@@ -68,8 +66,7 @@ void UdpClient::stop()
 
   _socket = -1;
 
-  std::unique_lock<std::mutex> lock(_stop_mutex);
-  _stop_cv.wait_for(lock, std::chrono::seconds(10));
+  if(_recv_th.joinable()) _recv_th.join();
 }
 
 void UdpClient::send_message_datagram(const char * buffer, size_t len)

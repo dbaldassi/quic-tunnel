@@ -40,11 +40,14 @@ void UdpServer::start()
 
 void UdpServer::stop()
 {
-  if(_socket >= 0) return;
+  if(_socket < 0) return;
 
   close(_socket);
   _socket = -1;
-
+  
+  std::unique_lock<std::mutex> lock(_cv_mutex);
+  _cv.wait(lock);
+  
   _out_socket->close();
 }
 
@@ -73,6 +76,8 @@ void UdpServer::recv()
       _out_socket->send(buffer, rec_len);
     }
   }
+
+  _cv.notify_all();
 }
 
 void UdpServer::onUdpMessage(const char * buffer, size_t len) noexcept
