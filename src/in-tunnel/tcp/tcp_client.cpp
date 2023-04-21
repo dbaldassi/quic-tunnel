@@ -125,7 +125,7 @@ Capabilities TcpClient::get_capabilities()
 
 void TcpClient::send_message_stream(const char * buffer, size_t len)
 {
-  write(_socket, std::to_string(len).c_str(), 4);
+  [[maybe_unused]] auto _ = write(_socket, std::to_string(len).c_str(), 4);
   
   if(write(_socket, buffer, len) < 0) {
     perror("tcp socket write error");

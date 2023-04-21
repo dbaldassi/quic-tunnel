@@ -189,7 +189,7 @@ void TcpServer::onUdpMessage(const char *buffer, size_t len) noexcept
   static size_t i = 0;
   std::cout << i++ << " sent: " << len << std::endl;
 
-  write(_connfd, std::to_string(len).c_str(), 4);
+  [[maybe_unused]] auto _ = write(_connfd, std::to_string(len).c_str(), 4);
   
   if(write(_connfd, buffer, len) < 0) {
     perror("Error writing tcp");

@@ -20,4 +20,3 @@ void on_qlog_filename(wrapper_t * wrapper, const char* buf, int len)
   
   server->set_qlog_filename(std::move(name));
 }
-
