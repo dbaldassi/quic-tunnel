@@ -127,7 +127,8 @@ class UploadRTCStats : public Command
 {
 
 public:
-  struct Point {
+  struct Point
+  {
     int x;
     int bitrate;
     int link;
@@ -147,7 +148,7 @@ class GetStats : public Command
 {
 public:
   std::string exp_name;
-  std::optional<std::string> qvis_file;
+  std::string transport; // QUIC / TCP / UDP
   
   ResponsePtr run() override;
 };

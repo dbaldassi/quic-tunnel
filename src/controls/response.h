@@ -95,8 +95,9 @@ struct UploadRTCStats : public Response
 
 struct GetStats : public Response
 {
-  std::string url;
-  std::string tcp_url;
+  std::string                url;
+  std::optional<std::string> tcp_url;
+  std::optional<std::string> qvis_url;
   
   nlohmann::json data() const override;
 };

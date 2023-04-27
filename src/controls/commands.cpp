@@ -11,6 +11,8 @@
 #include "in-tunnel/intunnel.h"
 #include "out-tunnel/outtunnel.h"
 
+#include "out-tunnel/quic_server.h"
+
 #include "fmt/core.h"
 
 namespace cmd
@@ -139,15 +141,6 @@ ResponsePtr StopServer::run()
     auto resp = std::make_unique<response::StopServer>();
     resp->trans_id = _trans_id;
     
-    if(const char * qvis = std::getenv("QVIS_URL")) {
-      resp->url = qvis;
-    }
-    else {
-      resp->url = "https://qvis.dabaldassi.fr";
-    }
-    
-    resp->url += "?file=" + server->get_qlog_file();
-
     server = nullptr;
 
     return resp;
@@ -243,7 +236,10 @@ void move_files(Dest&& dst, SrcFile&& src)
     fs::copy(src, dst);
     fs::remove(src);
   } catch (fs::filesystem_error& e) {
-    fmt::print("Could not copy file {} : {}", src, e.what());
+    if constexpr (std::is_same_v<std::remove_cvref_t<SrcFile>, fs::path>)
+		   fmt::print("Could not copy file {} : {}", src.c_str(), e.what());
+    else
+      fmt::print("Could not copy file {} : {}", src, e.what());
   }
 }
 
@@ -254,8 +250,11 @@ void move_files(Dest&& dst, SrcFile&& src, Files&& ... others)
     fs::copy(src, dst);
     fs::remove(src);
   } catch (fs::filesystem_error& e) {
-    fmt::print("Could not copy file {} : {}", src, e.what());
-  }
+    if constexpr (std::is_same_v<std::remove_cvref_t<SrcFile>, fs::path>)
+		   fmt::print("Could not copy file {} : {}", src.c_str(), e.what());
+    else
+      fmt::print("Could not copy file {} : {}", src, e.what());
+  } 
   move_files(dst, std::forward<Files>(others)...);
 }
 
@@ -266,9 +265,8 @@ ResponsePtr GetStats::run()
   fs::create_directory(results_path);
 
   // copy stats files into results directory
-  move_files(results_path, "bitrate.csv", "quic.csv", "file.csv", "sender-ss.csv", "result_tcp.png");
-  if(qvis_file.has_value()) move_files(results_path, *qvis_file);
-
+  move_files(results_path, "bitrate.csv", "quic.csv", "file.csv");
+  
   // Generate csv curve from stats file
   pid_t pid = fork();
 
@@ -282,12 +280,29 @@ ResponsePtr GetStats::run()
   auto resp = std::make_unique<response::GetStats>();
   resp->trans_id = _trans_id;
 
-  if(const char * res_url = std::getenv("RESULT_URL")) {
-    resp->url = (res_url / results_path / (exp_name + ".png")).c_str();
+  const char * res_url = std::getenv("RESULT_URL");
+  
+  if(!res_url) {
+    fmt::print("No RESULT_URL specified");
+    return resp;
+  }
+
+  resp->url = (res_url / results_path / (exp_name + ".png")).c_str();
+  
+  if(transport == "tcp") {
+    move_files(results_path, "sender-ss.csv", "result_tcp.png");
     resp->tcp_url = (res_url / results_path / "result_tcp.png").c_str();
   }
-  else {
-    fmt::print("No RESULT_URL specified");
+  else if(transport == "quic") {
+    fs::path               qlog_path{QuicServer::DEFAULT_QLOG_PATH};
+    fs::directory_iterator qlog_it{qlog_path};
+    
+    move_files(results_path, qlog_it->path());
+
+    if(const char * qvis = std::getenv("QVIS_URL")) resp->qvis_url = qvis;
+    else resp->qvis_url = "https://qvis.dabaldassi.fr";
+    
+    *resp->qvis_url += std::string("?file=") + (results_path / qlog_it->path().filename()).c_str();
   }
   
   return resp;

@@ -181,8 +181,8 @@ JsonParser::CommandPtr JsonParser::parse_getstats(const json& data)
     cmd->exp_name = exp->get<std::string>();
   }
 
-  if(auto qvis = data.find("qvis_file"); qvis != data.end()) {
-    cmd->qvis_file = qvis->get<std::string>();
+  if(auto transport = data.find("transport"); transport != data.end()) {
+    cmd->transport = transport->get<std::string>();
   }
 
   return cmd;

@@ -92,10 +92,10 @@ nlohmann::json UploadRTCStats::data() const
 
 nlohmann::json GetStats::data() const
 {
-  json data = {
-    { "url", url },
-    { "tcp_url", tcp_url }
-  };
+  json data = { { "url", url } };
+
+  if(tcp_url.has_value()) data.emplace("tcp_url", *tcp_url);
+  if(qvis_url.has_value()) data.emplace("qvis_url", *qvis_url);
   
   return data;
 }
