@@ -149,6 +149,7 @@ class GetStats : public Command
 public:
   std::string exp_name;
   std::string transport; // QUIC / TCP / UDP
+  std::string medooze_dump_url; // dump
   
   ResponsePtr run() override;
 };

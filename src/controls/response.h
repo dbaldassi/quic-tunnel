@@ -98,6 +98,7 @@ struct GetStats : public Response
   std::string                url;
   std::optional<std::string> tcp_url;
   std::optional<std::string> qvis_url;
+  std::optional<std::string> medooze_url;
   
   nlohmann::json data() const override;
 };

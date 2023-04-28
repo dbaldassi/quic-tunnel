@@ -184,6 +184,10 @@ JsonParser::CommandPtr JsonParser::parse_getstats(const json& data)
   if(auto transport = data.find("transport"); transport != data.end()) {
     cmd->transport = transport->get<std::string>();
   }
+  
+  if(auto url = data.find("medooze_dump_url"); url != data.end()) {
+    cmd->medooze_dump_url = url->get<std::string>();
+  }
 
   return cmd;
 }

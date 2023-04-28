@@ -288,6 +288,16 @@ ResponsePtr GetStats::run()
   }
 
   resp->url = (res_url / results_path / (exp_name + ".png")).c_str();
+
+  fs::path dump_file{"medooze_dumps"};
+  dump_file /= fs::path{medooze_dump_url}.filename();
+
+  move_files(results_path, dump_file);
+
+  resp->medooze_url = "https://medooze.github.io/bwe-stats-viewer/?url=";
+  *resp->medooze_url += (res_url / results_path / dump_file.filename()).c_str();
+    
+  fs::remove(dump_file.replace_extension(".pcap"));
   
   if(transport == "tcp") {
     move_files(results_path, "sender-ss.csv", "result_tcp.png");
@@ -304,7 +314,7 @@ ResponsePtr GetStats::run()
     
     *resp->qvis_url += std::string("?file=") + (results_path / qlog_it->path().filename()).c_str();
   }
-  
+
   return resp;
 }
 
