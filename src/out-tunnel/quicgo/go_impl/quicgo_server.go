@@ -195,11 +195,22 @@ func goServerStart(addr *C.char, datagrams bool, qlogDir *C.char, wrapper *C.wra
 
 //export goServerStop
 func goServerStop() {
-	quicSession.sess.CloseWithError(0, "normal shutdown")
+	if quicSession != nil {
+		if quicSession.sess != nil {
+			quicSession.sess.CloseWithError(0, "normal shutdown")
+		}
+	}
 }
 
 //export goServerSendMessageStream
 func goServerSendMessageStream(buf *C.char, len uint64) {
+	if quicSession == nil {
+		return;
+	}
+	if quicSession.sess == nil {
+		return;
+	}
+	
 	stream, err := quicSession.sess.OpenUniStream();
 	if err != nil {
 		print(err)

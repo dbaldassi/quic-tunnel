@@ -263,6 +263,7 @@ ResponsePtr GetStats::run()
   // create results directory
   fs::path results_path = fs::path{"result"}/exp_name;
   fs::create_directory(results_path);
+  fs::permissions(results_path, fs::perms::owner_all | fs::perms::group_all | fs::perms::others_all);
 
   // copy stats files into results directory
   move_files(results_path, "bitrate.csv", "quic.csv", "file.csv");
@@ -290,9 +291,11 @@ ResponsePtr GetStats::run()
   resp->url = (res_url / results_path / (exp_name + ".png")).c_str();
 
   fs::path dump_file{"medooze_dumps"};
+  fs::path mp4_file{"medooze_dumps"};
   dump_file /= fs::path{medooze_dump_url}.filename();
+  mp4_file /= fs::path{medooze_dump_url}.filename().replace_extension(".mp4");
 
-  move_files(results_path, dump_file);
+  move_files(results_path, dump_file, mp4_file);
 
   resp->medooze_url = "https://medooze.github.io/bwe-stats-viewer/?url=";
   *resp->medooze_url += (res_url / results_path / dump_file.filename()).c_str();
