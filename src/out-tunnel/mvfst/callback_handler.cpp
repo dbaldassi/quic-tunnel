@@ -122,13 +122,15 @@ void CallbackHandler::readAvailable(quic::StreamId id) noexcept
   }
 
   _queue_ids.push_front(id);
-  
-  auto copy = data->first->clone();
-  auto message = copy->moveToFbString().toStdString();
 
-  // LOG(INFO) << "Received message : " << message;
+  if(data->first) {
+    auto copy = data->first->clone();
+    auto message = copy->moveToFbString().toStdString();
+
+    // LOG(INFO) << "Received message : " << message;
   
-  _udp_socket->send(message.c_str(), message.size());
+    _udp_socket->send(message.c_str(), message.size());
+  }
 }
 
 void CallbackHandler::readError(quic::StreamId id, quic::QuicError error) noexcept

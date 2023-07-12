@@ -54,6 +54,8 @@ std::shared_ptr<fizz::server::FizzServerContext> create_server_ctx()
   ctx->setCertManager(std::move(cert_manager));
   ctx->setOmitEarlyRecordLayer(true);
   ctx->setClock(std::make_shared<fizz::SystemClock>());
+  ctx->setSupportedAlpns({ "quic-echo-example" });
+  ctx->setAlpnMode(fizz::server::AlpnMode::Required);
   
   return ctx;
 }
@@ -75,7 +77,7 @@ MvfstTransportFactory::make(folly::EventBase* evb,
   CHECK_EQ(evb, sock->getEventBase());
 
   _handler->set_evb(evb);
-
+  
   auto transport = quic::QuicServerTransport::make(evb,
 						   std::move(sock),
 						   _handler,
@@ -86,6 +88,9 @@ MvfstTransportFactory::make(folly::EventBase* evb,
   
   transport->setDatagramCallback(_handler);
   transport->setQLogger(QLog<quic::VantagePoint::Server>::create(QuicServer::DEFAULT_QLOG_PATH));
+
+  // std::vector<quic::QuicVersion> v = { quic::QuicVersion::QUIC_DRAFT, ver };
+  // transport->setSupportedVersions(v);
   
   return transport;
 }

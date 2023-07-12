@@ -34,18 +34,26 @@ void MvfstClient::start()
 
   evb->runInEventBaseThreadAndWait([this, &evb]() {
     auto sock = std::make_unique<folly::AsyncUDPSocket>(evb);
+    auto ctx = std::make_shared<fizz::client::FizzClientContext>();
+    ctx->setSupportedAlpns({"quic-echo-example"});
+    
     auto fizz_client_context = quic::FizzClientQuicHandshakeContext::Builder()
       .setCertificateVerifier(quic::test::createTestCertificateVerifier())
+      .setFizzClientContext(ctx)
       .build();
+
+    std::vector<quic::QuicVersion> versions = { quic::QuicVersion::QUIC_V1 };
 
     _quic_transport = std::make_shared<quic::QuicClientTransport>(evb,
 								  std::move(sock),
 								  std::move(fizz_client_context));
 
+
     _quic_transport->setHostname("echo.com");
     _quic_transport->addNewPeerAddress(_addr);
     _quic_transport->setDatagramCallback(this);
     _quic_transport->setCongestionControllerFactory(std::make_shared<quic::DefaultCongestionControllerFactory>());
+    _quic_transport->setSupportedVersions(versions);
 
     quic::TransportSettings settings;
     // enable datagram
