@@ -18,8 +18,10 @@ target_sources( quic-tunnel PRIVATE
 
 add_subdirectory( mvfst )
 add_subdirectory( quicgo )
+add_subdirectory( lsquic )
 
 target_link_libraries( quic-tunnel PRIVATE
   mvfst::server
   quicgo::server
+  lsquic::server
   )

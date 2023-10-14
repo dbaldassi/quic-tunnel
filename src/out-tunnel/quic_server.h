@@ -71,7 +71,7 @@ public:
 class QuicServerBuilder
 {
 public:
-  enum class QuicImplementation { MVFST, QUICGO, TCP, UDP };
+  enum class QuicImplementation { MVFST, QUICGO, LSQUIC, TCP, UDP };
 
   static void get_capabilities(std::vector<Capabilities>& capabilities);
   

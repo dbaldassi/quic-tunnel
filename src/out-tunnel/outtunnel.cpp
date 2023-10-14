@@ -53,10 +53,11 @@ OutTunnel::OutTunnel(int id,
   builder.dst_port = out_port;
   builder.udp_socket = &_udp_socket;
 
-  if(impl == "quicgo"sv)     builder.impl = QuicServerBuilder::QuicImplementation::QUICGO;
-  else if(impl == "mvfst"sv) builder.impl = QuicServerBuilder::QuicImplementation::MVFST;
-  else if(impl == "tcp"sv)   builder.impl = QuicServerBuilder::QuicImplementation::TCP;
-  else if(impl == "udp"sv)   builder.impl = QuicServerBuilder::QuicImplementation::UDP;
+  if(impl == "quicgo"sv)      builder.impl = QuicServerBuilder::QuicImplementation::QUICGO;
+  else if(impl == "mvfst"sv)  builder.impl = QuicServerBuilder::QuicImplementation::MVFST;
+  else if(impl == "lsquic"sv) builder.impl = QuicServerBuilder::QuicImplementation::LSQUIC;
+  else if(impl == "tcp"sv)    builder.impl = QuicServerBuilder::QuicImplementation::TCP;
+  else if(impl == "udp"sv)    builder.impl = QuicServerBuilder::QuicImplementation::UDP;
 
   _quic_server = builder.create();
 }

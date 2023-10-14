@@ -8,8 +8,9 @@ project( quic-tunnel )
 set( CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" )
 
 # -- check for required package
-find_package( mvfst REQUIRED )
-find_package( fmt REQUIRED )
+find_package( mvfst  REQUIRED )
+find_package( lsquic REQUIRED )
+find_package( fmt    REQUIRED )
 
 # -- External dependencies
 # --- ASIO
