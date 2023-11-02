@@ -153,7 +153,7 @@ void OutTunnel::set_cc(std::string_view cc)
 
 void OutTunnel::set_datagrams(bool enable)
 {
-  fmt::print("Set datagrams : {}", enable);
+  fmt::print("Set datagrams : {}\n", enable);
   _quic_server->set_datagrams(enable);
 }
 

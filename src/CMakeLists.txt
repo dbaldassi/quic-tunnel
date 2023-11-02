@@ -16,6 +16,6 @@ target_link_libraries( quic-tunnel PRIVATE
   fmt::fmt
   )
 
-add_subdirectory( in-tunnel )
 add_subdirectory( out-tunnel )
+add_subdirectory( in-tunnel )
 add_subdirectory( controls )

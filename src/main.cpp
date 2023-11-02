@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
     in.run();
   }
   else if(*mode == "server") {
-    OutTunnel out(0, "mvfst", turn_addr, quic_port, turn_port);
+    OutTunnel out(0, "lsquic", turn_addr, quic_port, turn_port);
     out.set_datagrams(false);
 
     __out__ = &out;    

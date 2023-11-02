@@ -1,12 +1,6 @@
-#include "openssl/evp.h"
-
 #include "lsquic_server.h"
 
-#include <event2/event.h>
-
 #include <lsquic.h>
-
-#include <openssl/ssl.h>
 
 #include <fmt/core.h>
 #include <sys/time.h>
@@ -35,8 +29,9 @@ static void lsquic_on_conn_closed (lsquic_conn_t * conn)
 
 static void lsquic_on_read(lsquic_stream_t * stream, lsquic_stream_ctx_t * st_h)
 {
+  auto server = reinterpret_cast<LsquicServer*>(st_h);
+  server->on_read(stream);
 }
-
 
 static void lsquic_on_write(lsquic_stream_t * stream, lsquic_stream_ctx_t * st_h)
 {
@@ -58,34 +53,36 @@ static int lsquic_send_packets(void *ctx, const struct lsquic_out_spec *specs, u
   auto server = reinterpret_cast<LsquicServer*>(ctx);
   return server->send_packets_out(specs, n_specs);
 }
-  
-static SSL_CTX * init_ssl_ctx()
-{
-  fmt::print("init_ssl_ctx\n");
-  
-  SSL_CTX * ctx = SSL_CTX_new(TLS_method());
-
-  SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
-  SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
-  SSL_CTX_set_default_verify_paths(ctx);
-  
-  return ctx;
-}
 
 static SSL_CTX * get_ssl_ctx(void *peer_ctx, const struct sockaddr *unused)
 {
   fmt::print("get_ssl_ctx\n");
+
+  auto server = reinterpret_cast<LsquicServer*>(peer_ctx);
   
-  static SSL_CTX * ctx = init_ssl_ctx();
-  return ctx;
+  return server->get_ssl_ctx();
 }
-  
+
+static int lsquic_log(void *logger_ctx, const char *buf, long unsigned int len)
+{
+  fmt::print("{}\n", buf);
+  return 0;
+}
+
+static struct ssl_ctx_st * no_cert(void *cert_lu_ctx, const struct sockaddr *sa_UNUSED, const char *sni)
+{
+    return NULL;
+}
+
+
 }
 
 std::atomic<int> LsquicServer::_ref_count{0};
 
 void LsquicServer::init_lsquic()
 {
+  fmt::print("lsquic global init\n");
+  
   if (lsquic_global_init(LSQUIC_GLOBAL_SERVER) != 0) {
     fmt::print("error: Could not init lsquic\n");
     exit(EXIT_FAILURE);
@@ -98,13 +95,25 @@ void LsquicServer::exit_lsquic()
 }
 
 LsquicServer::LsquicServer(const std::string& host, uint16_t port, out::UdpSocket * udp_socket)
-  : _port(port), _socket(-1), _udp_socket(udp_socket)
+  : _port(port), _socket(-1), _udp_socket(nullptr)
 {
-  fmt::print("LsquicServer::LsquicServer\n");
+  fmt::print("LsquicServer::LsquicServer {} {}\n", host, port);
+
+  _ssl_ctx = SSL_CTX_new(TLS_method());
+
+  SSL_CTX_set_min_proto_version(_ssl_ctx, TLS1_3_VERSION);
+  SSL_CTX_set_max_proto_version(_ssl_ctx, TLS1_3_VERSION);
+  SSL_CTX_set_default_verify_paths(_ssl_ctx);
   
   if(_ref_count == 0) init_lsquic();
   ++_ref_count;
 
+  _logger_if.log_buf = lsquic_log;
+  lsquic_logger_init(&_logger_if, this, LLTS_NONE);
+
+  memset(&_stream_if, 0, sizeof(_stream_if));
+  memset(&_engine_api, 0, sizeof(_engine_api));
+  
   _stream_if.on_new_conn = lsquic_on_new_conn;
   _stream_if.on_conn_closed = lsquic_on_conn_closed;
   _stream_if.on_new_stream = lsquic_on_new_stream;
@@ -113,16 +122,24 @@ LsquicServer::LsquicServer(const std::string& host, uint16_t port, out::UdpSocke
   _stream_if.on_close = lsquic_on_stream_close;
   _stream_if.on_datagram = lsquic_on_datagram;
 
+  lsquic_engine_init_settings(&_engine_settings, LSENG_SERVER);
   _engine_settings.es_datagrams = true;
   
   _engine_api.ea_stream_if = &_stream_if;
   _engine_api.ea_stream_if_ctx = (void*)this;
-  _engine_api.ea_get_ssl_ctx = get_ssl_ctx;
+  _engine_api.ea_get_ssl_ctx = ::get_ssl_ctx;
   _engine_api.ea_settings = &_engine_settings;
   _engine_api.ea_packets_out = lsquic_send_packets;
   _engine_api.ea_packets_out_ctx = (void*)this;
-
+  _engine_api.ea_alpn = "quic-echo-server";
+  _engine_api.ea_lookup_cert = no_cert;
+  
+  fmt::print("lsquic engine new\n");
   _engine = lsquic_engine_new(LSENG_SERVER, &_engine_api);
+  if(!_engine) {
+    fmt::print("lsquic engine not so new\n");
+    std::exit(EXIT_SUCCESS);
+  }
 
   _start = false;
 }
@@ -136,6 +153,8 @@ LsquicServer::~LsquicServer()
 
 void LsquicServer::init_socket()
 {
+  fmt::print("Init lsquic udp socket\n");
+  
   _socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   
   struct timeval optval;
@@ -213,7 +232,6 @@ ssize_t LsquicServer::recv()
     }
   } while(rec_len < 0);
 
-  // _addr_other = addr;
   _addr_peer.sin_family = AF_INET;
   _addr_peer.sin_port = addr.sin_port;
   _addr_peer.sin_addr.s_addr = addr.sin_addr.s_addr;
@@ -225,34 +243,56 @@ ssize_t LsquicServer::recv()
 
 void LsquicServer::start()
 {
+  fmt::print("Starting lsquic\n");
+  
   init_socket();
 
   _start = true;
 
-  _recv_thread = std::thread([this](){
-  
+  std::thread([this]() {
+    int diff;
+
     while(_start) {
-      auto len = recv();
+      // fmt::print("Process cons\n");
+      lsquic_engine_process_conns(_engine);
 
-      auto result = lsquic_engine_packet_in(_engine, _buf, len,
-					    (struct sockaddr*)&_addr_local, (struct sockaddr*)&_addr_peer,
-					    (void*)this, 0);
-
-      switch(result) {
-      case 0:
-	fmt::print("Packet was processed by a real connection.");
-	break;
-      case 1:
-	fmt::print("Packet was handled successfully, but not by a connection");
-	break;
-      case -1:
-	fmt::print("Error from lsquic_engine_packet_in");
-	break;
-      default:
-	fmt::print("Unknown result from lsquic_engine_packet_in");
+      if (lsquic_engine_earliest_adv_tick(_engine, &diff)) {
+	std::this_thread::sleep_for(std::chrono::microseconds(diff));
+      }
+      else {
+	std::this_thread::sleep_for(std::chrono::microseconds(100));
       }
     }
-  });
+
+    fmt::print("Exit Process cons\n");
+  }).detach();
+  
+  fmt::print("Start receiving udp message\n");
+    
+  while(_start) {
+    auto len = recv();
+    if(len == -1) break;
+
+    auto result = lsquic_engine_packet_in(_engine, _buf, len,
+					  (struct sockaddr*)&_addr_local, (struct sockaddr*)&_addr_peer,
+					  (void*)this, 0);
+
+    switch(result) {
+    case 0:
+      fmt::print("Packet was processed by a real connection.\n");
+      break;
+    case 1:
+      fmt::print("Packet was handled successfully, but not by a connection\n");
+      break;
+    case -1:
+      fmt::print("Error from lsquic_engine_packet_in\n");
+      break;
+    default:
+      fmt::print("Unknown result from lsquic_engine_packet_in\n");
+    }
+  }
+
+  _cv.notify_all();
 }
 
 bool LsquicServer::set_datagrams(bool enable)
@@ -263,7 +303,9 @@ bool LsquicServer::set_datagrams(bool enable)
 }
   
 bool LsquicServer::set_cc(std::string_view cc) noexcept
-{  
+{
+  fmt::print("lsquic requested to set {} cc\n", cc);
+  
   if(cc == "cubic")         _cc = Congestion::CUBIC;
   else if(cc == "bbrv1")    _cc = Congestion::BBRV1;
   else if(cc == "adaptive") _cc = Congestion::ADAPTIVE;
@@ -277,7 +319,8 @@ void LsquicServer::stop()
   _start = false;
   close_socket();
 
-  _recv_thread.join();
+  // std::unique_lock<std::mutex> lock(_cv_mutex);
+  // _cv.wait(lock);
 }
 
 lsquic_conn_ctx_t * LsquicServer::on_new_conn(lsquic_conn_t *conn)
@@ -296,23 +339,35 @@ void LsquicServer::on_conn_closed(lsquic_conn_t * conn)
   fmt::print("LsquicServer::on_conn_closed\n");
 }
 
-void LsquicServer::on_read(lsquic_stream_t * stream, lsquic_stream_ctx_t * st_h)
+void LsquicServer::on_read(lsquic_stream_t * stream)
 {
   fmt::print("LsquicServer::on_read\n");
+
+  unsigned char buf[MAX_BUF_LEN];
+  ssize_t nr = lsquic_stream_read(stream, buf, sizeof(buf));
+
+  fmt::print("Received {} bytes message : {}", nr, (char*)buf);
+
+  if (nr == 0) /* EOF */ {
+    lsquic_stream_shutdown(stream, 0);
+    // lsquic_stream_wantwrite(stream, 1); /* Want to reply */
+  }
 }
 
-void LsquicServer::on_write(lsquic_stream_t * stream, lsquic_stream_ctx_t * st_h)
+void LsquicServer::on_write(lsquic_stream_t * stream)
 {
   fmt::print("LsquicServer::on_write\n");
 }
 
-void LsquicServer::on_stream_close(lsquic_stream_t * stream, lsquic_stream_ctx_t * st_h)
+void LsquicServer::on_stream_close(lsquic_stream_t * stream)
 {
   fmt::print("LsquicServer::on_stream_close\n");
 }
 
 int LsquicServer::send_packets_out(const struct lsquic_out_spec *specs, unsigned n_specs)
 {
+  fmt::print("LsquicServer::send_packets_out");
+  
   struct msghdr msg;
   unsigned n;
 

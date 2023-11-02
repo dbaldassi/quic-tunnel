@@ -3,11 +3,14 @@
 
 #include <lsquic.h>
 #include <atomic>
+#include <condition_variable>
 
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
+
+#include <openssl/ssl.h>
 
 #include "quic_server.h"
 
@@ -34,8 +37,11 @@ class LsquicServer : public QuicServer
   lsquic_engine_t   *    _engine;
   lsquic_engine_api      _engine_api;
   lsquic_stream_if       _stream_if;
+  lsquic_logger_if       _logger_if;
   lsquic_engine_settings _engine_settings;
 
+  SSL_CTX * _ssl_ctx;
+  
   uint8_t _cc;
   
   int _socket;
@@ -46,7 +52,8 @@ class LsquicServer : public QuicServer
   socklen_t          _addr_local_len;
   socklen_t          _addr_peer_len;
 
-  std::thread _recv_thread;
+  std::condition_variable _cv;
+  std::mutex _cv_mutex;
   
   static std::atomic<int> _ref_count;
 
@@ -77,13 +84,15 @@ public:
   bool set_cc(std::string_view cc) noexcept override;
   void stop() override;
 
+  SSL_CTX* get_ssl_ctx() { return _ssl_ctx; }
+  
   // lsquic callback
   lsquic_conn_ctx_t   * on_new_conn(lsquic_conn_t *conn);
   lsquic_stream_ctx_t * on_new_stream(lsquic_stream_t * stream);
   void on_conn_closed (lsquic_conn_t * conn);
-  void on_read(lsquic_stream_t * stream, lsquic_stream_ctx_t * st_h);
-  void on_write(lsquic_stream_t * stream, lsquic_stream_ctx_t * st_h);
-  void on_stream_close(lsquic_stream_t * stream, lsquic_stream_ctx_t * st_h);
+  void on_read(lsquic_stream_t * stream);
+  void on_write(lsquic_stream_t * stream);
+  void on_stream_close(lsquic_stream_t * stream);
   int send_packets_out(const struct lsquic_out_spec *specs, unsigned n_specs);
 
 };

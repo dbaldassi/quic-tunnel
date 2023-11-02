@@ -21,7 +21,7 @@ add_subdirectory( quicgo )
 add_subdirectory( lsquic )
 
 target_link_libraries( quic-tunnel PRIVATE
+  lsquic::server
   mvfst::server
   quicgo::server
-  lsquic::server
   )
