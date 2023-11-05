@@ -40,7 +40,7 @@ class LsquicServer : public QuicServer
   lsquic_logger_if       _logger_if;
   lsquic_engine_settings _engine_settings;
 
-  SSL_CTX * _ssl_ctx;
+  SSL_CTX  * _ssl_ctx;
   
   uint8_t _cc;
   

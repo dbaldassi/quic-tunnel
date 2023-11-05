@@ -1,18 +1,101 @@
 #include "lsquic_server.h"
 
+#include <lsquic_types.h>
 #include <lsquic.h>
 
 #include <fmt/core.h>
 #include <sys/time.h>
 
+#include <openssl/ssl.h>
+#include <openssl/crypto.h>
+#include <openssl/pem.h>
+#include <openssl/conf.h>
+#include <openssl/x509v3.h>
+#ifndef OPENSSL_NO_ENGINE
+#include <openssl/engine.h>
+#endif
+
+#include <fstream>
+
 #include <cstdlib>
+
+#include "lsquic_hash.h"
+
+constexpr char key[] =
+"-----BEGIN PRIVATE KEY-----\n"
+"MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCx9CiM8rAm4pzg\n"
+"zt6SgsPxZGPMKaNUayxci1GIRKTdqQIC6ISguX/56tLFn0jSnAMHmYv6nEo/qjQD\n"
+"xDHJPMSdB9lX+RUCT77ANfgt+M9PLETGENmvCIGQpH3nMcm7l37LYzTWab7xka2r\n"
+"/FBJ86XF6bphY4KIAAHXswzkA0Ub95wHJDgLk0YSKluc4/5LLQdO58aRiYo3+1Ls\n"
+"XTq+48iwY7Os20MrXCzXxB383LXvVyj2WjBQytqN/weMRBLDNfB+zKlnJUZCuTrK\n"
+"RCmLTEV/lvRLYyca79oxyI2Ekbb2w9KVwXImvurpDsRjFV4UL8ek2Bsrq86bIWU6\n"
+"RF8ZQIrnAgMBAAECggEACFqKVseDvmeP7ru3VhBea2QHjUt9F9bqH7QIkUmLpb4r\n"
+"0oAgzby3hb9gwpcuH3jkaYRrPkn88E0ooO6iWayJHEgEi20tb8zXiwVdj6bo8HIH\n"
+"Dnc3CNDw6B3YrTQ4oJ5FfP28ur3/ES8CBJtVF4uhAg/tSGoX9BNwArSsi72djmj2\n"
+"tiRmMfzzhofOybteBb/+aEEyhkBW74bB1gxNz8yiIgPCMgcFQQpKg11zFb9CHWta\n"
+"g+ajkPu8LVRtg6SIsWTPiIEUjtBkHFH9YNWazvXpL8CMBIXkMRH98djJQeHBabtH\n"
+"/yLBIZAm25tOqk4ybsf9Ra4d5xcLjFNtXnlImRJe6QKBgQDai+i+hdbkR7nry+VA\n"
+"G4Z+UOTNTKZca4c8cLoNRdq8bQdus3Dh/NsfWQCjnPLD0ynghbwJnAJ1azJ80gxy\n"
+"gq5D6B7LDx+1fQYs0OJAnL1wq9yPi+ezHTna+RyudfhBcpp668eCgprZKQMrYgzv\n"
+"Nq/772PIY9f1eCodJHa+nxAhWQKBgQDQc1wQxMGfiQHdJyXKHgIjSYRtb8CsFUn+\n"
+"iMXuGUN3zTWPAjfOJFk7SkKhF92kVY3FpuaBmsEPIaq6vAs/ES6vhDJgqWgiv8h3\n"
+"CxD5kZeuXqv5u3Q8yJCs5aYUVwiwLnAC9i1WrBBleyHq1UZyh0HMfDbSvhicZyjm\n"
+"px6LRTpGPwKBgG8WySL3Y2k8cGxEg26Xz0CsG/Gjcbjuy5pUbq5KgMpg3XNO8SVe\n"
+"Y3/GvQVtxRT3ZIUFVbTIwZMv/0TlfIBEnxJTjjuHn4WgXKAxOaDAS6dXJNEuu4MX\n"
+"aw48rHCd9KhH+fBbo1lazB1wtHS77Xk3IjN81wrIfcD/6OBRZa61qfxZAoGBAIHC\n"
+"3lP99751Tni6LvcUGSaYVFy/zYQSOJ6/y979UReZ4jZlHhIwZG/ZOYMI1UvAimG5\n"
+"FRMnH/lobtyRxLp82sAeHjI4IwBGvOcGN4n0jSTaAFqUy7Yu8IkA6JMO3vS147qk\n"
+"PvMOZ6KUtTd3jsQq2NYPmR01gyKRwU9cR1JRRQaHAoGAZ2BD9YBALP95ze+1gAGm\n"
+"se3YxalB0jQe1QEbzmFeeFCtKfoBbi8MF+09mxt1Fgqevg6uhEb7Wmy569rEUegI\n"
+"sGKGUgA+Dtjx1DvAKdJabpHxJbhOncMbwB9uxOTUgG5AGU+Cu3u+PQMh7+DbPqyF\n"
+"5xFWAwFIiQps93UsfBIzwdY=\n"
+"-----END PRIVATE KEY-----";
+
+constexpr char certificate[] =
+"-----BEGIN CERTIFICATE-----\n"
+"MIIDEzCCAfsCFC5DGC23N5umN9foYysuw/cCwsO9MA0GCSqGSIb3DQEBCwUAMEUx\n"
+"CzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRl\n"
+"cm5ldCBXaWRnaXRzIFB0eSBMdGQwIBcNMjMxMTAyMTUwMzA0WhgPMjA1MTAzMTkx\n"
+"NTAzMDRaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYD\n"
+"VQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwggEiMA0GCSqGSIb3DQEBAQUA\n"
+"A4IBDwAwggEKAoIBAQCx9CiM8rAm4pzgzt6SgsPxZGPMKaNUayxci1GIRKTdqQIC\n"
+"6ISguX/56tLFn0jSnAMHmYv6nEo/qjQDxDHJPMSdB9lX+RUCT77ANfgt+M9PLETG\n"
+"ENmvCIGQpH3nMcm7l37LYzTWab7xka2r/FBJ86XF6bphY4KIAAHXswzkA0Ub95wH\n"
+"JDgLk0YSKluc4/5LLQdO58aRiYo3+1LsXTq+48iwY7Os20MrXCzXxB383LXvVyj2\n"
+"WjBQytqN/weMRBLDNfB+zKlnJUZCuTrKRCmLTEV/lvRLYyca79oxyI2Ekbb2w9KV\n"
+"wXImvurpDsRjFV4UL8ek2Bsrq86bIWU6RF8ZQIrnAgMBAAEwDQYJKoZIhvcNAQEL\n"
+"BQADggEBAFAleQ76CACX6yY+hw7Ci5X5/H+Gu1NneeX85z1E/PKfn7QoCXB1MHtc\n"
+"thWv4HE3evi5U6gUaiPOURF2sleI7qs0uq0m2Ltz6fSHCHlE7pTMVJcjoigh6nS8\n"
+"B6ErwyTTdTfYk/9bMZ9AfgStrbtW4l3EoJIY7d3IELgAwi2uRFV/pEsjYdGZo20Z\n"
+"SRnCTyMfEdtHBZSk2CArdKu5V2btdyDX6argpJan+4V9idFR3G57D0LMBaMBbBxN\n"
+"dz8WdbKDme6dFBJi5SAlm8c9ip2isPO8dLjjU2s0IZyhFL8UuQlCoMXmz7oo3Sd+\n"
+"rHbEuKgMhCHHIy9GE56qyX5iZffGtZQ=\n"
+"-----END CERTIFICATE-----";
 
 extern "C"
 {
 
+// struct server_cert
+// {
+//     char                *ce_sni;
+//     struct ssl_ctx_st   *ce_ssl_ctx;
+//     struct lsquic_hash_elem ce_hash_el;
+// };
+
+struct ssl_ctx_st * lookup_cert (void *cert_lu_ctx, const struct sockaddr *sa_UNUSED, const char *sni)
+{
+  auto server = reinterpret_cast<LsquicServer*>(cert_lu_ctx);
+
+  fmt::print("Lookup cert\n");
+  if(sni) fmt::print("sni : {} \n", sni);
+  
+  return server->get_ssl_ctx();
+}
+
+
 static lsquic_conn_ctx_t * lsquic_on_new_conn(void * stream_if_ctx, lsquic_conn_t * conn)
 {
-  auto server = reinterpret_cast<LsquicServer*>(stream_if_ctx);
+  auto server = reinterpret_cast<LsquicServer*>(stream_if_ctx);  
   return server->on_new_conn(conn);
 }
 
@@ -104,7 +187,25 @@ LsquicServer::LsquicServer(const std::string& host, uint16_t port, out::UdpSocke
   SSL_CTX_set_min_proto_version(_ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(_ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_default_verify_paths(_ssl_ctx);
+
+  std::ofstream keyfs("key.pem"), certfs("cert.pem");
+  keyfs << key;
+  certfs << certificate;
+
+  keyfs.close();
+  certfs.close();
   
+  if(SSL_CTX_use_certificate_chain_file(_ssl_ctx, "cert.pem") != 1) {
+    fmt::print("certificate len : {}\n", sizeof(certificate));
+    perror("error: Could not use ssl certificate : \n");
+    exit(EXIT_FAILURE);
+  }
+
+  if(SSL_CTX_use_PrivateKey_file(_ssl_ctx, "key.pem", SSL_FILETYPE_PEM) != 1) {
+    fmt::print("error: Could not use ssl key\n");
+    exit(EXIT_FAILURE);
+  }
+    
   if(_ref_count == 0) init_lsquic();
   ++_ref_count;
 
@@ -132,7 +233,8 @@ LsquicServer::LsquicServer(const std::string& host, uint16_t port, out::UdpSocke
   _engine_api.ea_packets_out = lsquic_send_packets;
   _engine_api.ea_packets_out_ctx = (void*)this;
   _engine_api.ea_alpn = "quic-echo-server";
-  _engine_api.ea_lookup_cert = no_cert;
+  _engine_api.ea_lookup_cert = lookup_cert;
+  _engine_api.ea_cert_lu_ctx = (void*)this;
   
   fmt::print("lsquic engine new\n");
   _engine = lsquic_engine_new(LSENG_SERVER, &_engine_api);

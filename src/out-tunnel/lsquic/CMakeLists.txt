@@ -6,6 +6,10 @@ add_library( lsquic::server ALIAS lsquic_server )
 target_sources( lsquic_server PRIVATE
   lsquic_server.cpp
   lsquic_server.h
+  lsquic_hash.h
+  lsquic_xxhash.h
+  lsquic_hash.c
+  lsquic_xxhash.c
   )
 
 target_include_directories( lsquic_server PUBLIC
