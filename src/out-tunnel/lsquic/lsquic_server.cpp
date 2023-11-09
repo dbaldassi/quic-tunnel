@@ -108,6 +108,7 @@ static lsquic_stream_ctx_t * lsquic_on_new_stream(void * stream_if_ctx, lsquic_s
 
 static void lsquic_on_conn_closed (lsquic_conn_t * conn)
 {
+  fmt::print("lsquic On connection closed\n");
 }
 
 static void lsquic_on_read(lsquic_stream_t * stream, lsquic_stream_ctx_t * st_h)
@@ -118,17 +119,18 @@ static void lsquic_on_read(lsquic_stream_t * stream, lsquic_stream_ctx_t * st_h)
 
 static void lsquic_on_write(lsquic_stream_t * stream, lsquic_stream_ctx_t * st_h)
 {
+  fmt::print("lsquic On write\n");
 }
 
 
 static void lsquic_on_stream_close(lsquic_stream_t * stream, lsquic_stream_ctx_t * st_h)
 {
-  
+  fmt::print("lsquic On stream close\n");
 }
 
 static void lsquic_on_datagram(lsquic_conn_t * conn, const void * buf, size_t size)
 {
-  
+  fmt::print("lsquic On datagram\n");
 }
 
 static int lsquic_send_packets(void *ctx, const struct lsquic_out_spec *specs, unsigned n_specs)
@@ -358,12 +360,13 @@ void LsquicServer::start()
       // fmt::print("Process cons\n");
       lsquic_engine_process_conns(_engine);
 
-      if (lsquic_engine_earliest_adv_tick(_engine, &diff)) {
+      /*if (lsquic_engine_earliest_adv_tick(_engine, &diff)) {
 	std::this_thread::sleep_for(std::chrono::microseconds(diff));
       }
       else {
 	std::this_thread::sleep_for(std::chrono::microseconds(100));
-      }
+	}*/
+      std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
 
     fmt::print("Exit Process cons\n");
@@ -468,21 +471,28 @@ void LsquicServer::on_stream_close(lsquic_stream_t * stream)
 
 int LsquicServer::send_packets_out(const struct lsquic_out_spec *specs, unsigned n_specs)
 {
-  fmt::print("LsquicServer::send_packets_out");
+  fmt::print("LsquicServer::send_packets_out\n");
   
   struct msghdr msg;
   unsigned n;
 
   memset(&msg, 0, sizeof(msg));
 
-  for (n = 0; n < n_specs; ++n)
-    {
-      msg.msg_name       = (void *) specs[n].dest_sa;
-      msg.msg_namelen    = sizeof(struct sockaddr_in);
-      msg.msg_iov        = specs[n].iov;
-      msg.msg_iovlen     = specs[n].iovlen;
-      if (sendmsg(_socket, &msg, 0) < 0) break;
+  for (n = 0; n < n_specs; ++n) {
+    msg.msg_name       = (void *) specs[n].dest_sa;
+    msg.msg_namelen    = sizeof(struct sockaddr_in);
+    msg.msg_iov        = specs[n].iov;
+    msg.msg_iovlen     = specs[n].iovlen;
+    if (sendmsg(_socket, &msg, 0) < 0) {
+      perror("noooo");
+      break;
     }
+    else {
+      fmt::print("Sending at least something\n");
+    }
+  }
+
+  fmt::print("n : {} {}\n", n, n_specs);
 
   return (int) n;
 }
