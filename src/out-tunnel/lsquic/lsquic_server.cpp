@@ -49,7 +49,7 @@ constexpr char key[] =
 "se3YxalB0jQe1QEbzmFeeFCtKfoBbi8MF+09mxt1Fgqevg6uhEb7Wmy569rEUegI\n"
 "sGKGUgA+Dtjx1DvAKdJabpHxJbhOncMbwB9uxOTUgG5AGU+Cu3u+PQMh7+DbPqyF\n"
 "5xFWAwFIiQps93UsfBIzwdY=\n"
-"-----END PRIVATE KEY-----";
+"-----END PRIVATE KEY-----\n";
 
 constexpr char certificate[] =
 "-----BEGIN CERTIFICATE-----\n"
@@ -70,7 +70,7 @@ constexpr char certificate[] =
 "SRnCTyMfEdtHBZSk2CArdKu5V2btdyDX6argpJan+4V9idFR3G57D0LMBaMBbBxN\n"
 "dz8WdbKDme6dFBJi5SAlm8c9ip2isPO8dLjjU2s0IZyhFL8UuQlCoMXmz7oo3Sd+\n"
 "rHbEuKgMhCHHIy9GE56qyX5iZffGtZQ=\n"
-"-----END CERTIFICATE-----";
+"-----END CERTIFICATE-----\n";
 
 extern "C"
 {
@@ -89,7 +89,7 @@ struct ssl_ctx_st * lookup_cert (void *cert_lu_ctx, const struct sockaddr *sa_UN
   fmt::print("Lookup cert\n");
   if(sni) fmt::print("sni : {} \n", sni);
   
-  return server->get_ssl_ctx();
+  return server->get_cert_ctx();
 }
 
 
@@ -159,6 +159,27 @@ static struct ssl_ctx_st * no_cert(void *cert_lu_ctx, const struct sockaddr *sa_
     return NULL;
 }
 
+static int
+select_alpn (SSL *ssl, const unsigned char **out, unsigned char *outlen,
+                    const unsigned char *in, unsigned int inlen, void *arg)
+{
+    int r;
+
+    char s_alpn[0x100] = "0echo\0";
+    s_alpn[0] = 4;
+    
+    r = SSL_select_next_proto((unsigned char **) out, outlen, in, inlen,
+                                    (unsigned char *) s_alpn, strlen(s_alpn));
+    if (r == OPENSSL_NPN_NEGOTIATED) {
+      fmt::print("NPN nego OK\n");
+      return SSL_TLSEXT_ERR_OK;
+    }
+    else {
+      fmt::print("no supported protocol can be selected from {}\n",(char *) in);
+      return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+}
+
 
 }
 
@@ -185,25 +206,43 @@ LsquicServer::LsquicServer(const std::string& host, uint16_t port, out::UdpSocke
   fmt::print("LsquicServer::LsquicServer {} {}\n", host, port);
 
   _ssl_ctx = SSL_CTX_new(TLS_method());
+  _cert_ctx = SSL_CTX_new(TLS_method());
 
   SSL_CTX_set_min_proto_version(_ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(_ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_default_verify_paths(_ssl_ctx);
 
-  std::ofstream keyfs("key.pem"), certfs("cert.pem");
-  keyfs << key;
-  certfs << certificate;
+  SSL_CTX_set_min_proto_version(_cert_ctx, TLS1_3_VERSION);
+  SSL_CTX_set_max_proto_version(_cert_ctx, TLS1_3_VERSION);
+  SSL_CTX_set_default_verify_paths(_cert_ctx);
+  SSL_CTX_set_alpn_select_cb(_cert_ctx, select_alpn, NULL);
+  SSL_CTX_set_early_data_enabled(_cert_ctx, 1);
+  SSL_CTX_set_session_cache_mode(_cert_ctx, 1);
 
-  keyfs.close();
-  certfs.close();
+  unsigned char ticket_keys[48];
+  memset(ticket_keys, 0, sizeof(ticket_keys));
+  if (1 != SSL_CTX_set_tlsext_ticket_keys(_ssl_ctx, ticket_keys, sizeof(ticket_keys))) {
+    fmt::print("ERROR: SSL_CTX_set_tlsext_ticket_keys failed\n");
+    // return -1;
+  }
+
   
-  if(SSL_CTX_use_certificate_chain_file(_ssl_ctx, "cert.pem") != 1) {
+  // SSL_CTX_set_early_data_enabled(prog->prog_ssl_ctx, 1);
+
+  // std::ofstream keyfs("key.pem"), certfs("cert.pem");
+  // keyfs << key;
+  // certfs << certificate;
+
+  // keyfs.close();
+  // certfs.close();
+  
+  if(SSL_CTX_use_certificate_chain_file(_cert_ctx, "cert.pem") != 1) {
     fmt::print("certificate len : {}\n", sizeof(certificate));
     perror("error: Could not use ssl certificate : \n");
     exit(EXIT_FAILURE);
   }
 
-  if(SSL_CTX_use_PrivateKey_file(_ssl_ctx, "key.pem", SSL_FILETYPE_PEM) != 1) {
+  if(SSL_CTX_use_PrivateKey_file(_cert_ctx, "key.pem", SSL_FILETYPE_PEM) != 1) {
     fmt::print("error: Could not use ssl key\n");
     exit(EXIT_FAILURE);
   }
@@ -212,6 +251,7 @@ LsquicServer::LsquicServer(const std::string& host, uint16_t port, out::UdpSocke
   ++_ref_count;
 
   _logger_if.log_buf = lsquic_log;
+  lsquic_set_log_level("Warning");
   lsquic_logger_init(&_logger_if, this, LLTS_NONE);
 
   memset(&_stream_if, 0, sizeof(_stream_if));
@@ -227,6 +267,8 @@ LsquicServer::LsquicServer(const std::string& host, uint16_t port, out::UdpSocke
 
   lsquic_engine_init_settings(&_engine_settings, LSENG_SERVER);
   _engine_settings.es_datagrams = true;
+
+  fmt::print("QUIC VERSION : {}", _engine_settings.es_versions);
   
   _engine_api.ea_stream_if = &_stream_if;
   _engine_api.ea_stream_if_ctx = (void*)this;
@@ -234,7 +276,7 @@ LsquicServer::LsquicServer(const std::string& host, uint16_t port, out::UdpSocke
   _engine_api.ea_settings = &_engine_settings;
   _engine_api.ea_packets_out = lsquic_send_packets;
   _engine_api.ea_packets_out_ctx = (void*)this;
-  _engine_api.ea_alpn = "quic-echo-server";
+  // _engine_api.ea_alpn = "echo";
   _engine_api.ea_lookup_cert = lookup_cert;
   _engine_api.ea_cert_lu_ctx = (void*)this;
   
@@ -395,6 +437,8 @@ void LsquicServer::start()
     default:
       fmt::print("Unknown result from lsquic_engine_packet_in\n");
     }
+
+    lsquic_engine_process_conns(_engine);
   }
 
   _cv.notify_all();
@@ -488,11 +532,11 @@ int LsquicServer::send_packets_out(const struct lsquic_out_spec *specs, unsigned
       break;
     }
     else {
-      fmt::print("Sending at least something\n");
+      // fmt::print("Sending at least something\n");
     }
   }
 
-  fmt::print("n : {} {}\n", n, n_specs);
+  // fmt::print("n : {} {}\n", n, n_specs);
 
   return (int) n;
 }

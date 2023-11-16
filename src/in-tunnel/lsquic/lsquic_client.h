@@ -1,21 +1,23 @@
-#ifndef LSQUIC_SERVER_H
-#define LSQUIC_SERVER_H
+#ifndef LSQUIC_CLIENT_H
+#define LSQUIC_CLIENT_H
 
-#include <lsquic.h>
-#include <atomic>
-#include <condition_variable>
+#include "quic_client.h"
 
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 
+#include <lsquic.h>
 #include <openssl/ssl.h>
 
-#include "quic_server.h"
-
-class LsquicServer : public QuicServer
+class LsquicClient final : public QuicClient
 {
+  static constexpr auto MAX_BUF_LEN = 2048u;
+
   enum Congestion : uint8_t {
     DEFAULT_CC = 0,
     CUBIC = 1,
@@ -23,27 +25,21 @@ class LsquicServer : public QuicServer
     ADAPTIVE = 3
   };
   
-  static constexpr auto MAX_BUF_LEN = 2048u;
-  
-  std::string      _host;
-  uint16_t         _port;
-  
-  out::UdpSocket * _udp_socket;
-
-  std::string _qlog_file;
+  std::string _host;
+  std::string _qlog_dir;
+  std::string _qlog_filename;
+  int         _port;
   bool        _datagrams;
-  bool        _start;
+  uint8_t     _cc;
+
+  SSL_CTX    * _ssl_ctx;
 
   lsquic_engine_t   *    _engine;
   lsquic_engine_api      _engine_api;
   lsquic_stream_if       _stream_if;
   lsquic_logger_if       _logger_if;
   lsquic_engine_settings _engine_settings;
-
-  SSL_CTX    * _ssl_ctx;
-  ssl_ctx_st * _cert_ctx;
-  
-  uint8_t _cc;
+  lsquic_conn_t *        _conn;
   
   int _socket;
   unsigned char _buf[MAX_BUF_LEN];
@@ -57,7 +53,8 @@ class LsquicServer : public QuicServer
   std::mutex _cv_mutex;
   
   static std::atomic<int> _ref_count;
-
+  std::atomic<bool>       _start;
+  
   static void init_lsquic();
   static void exit_lsquic();
 
@@ -65,28 +62,24 @@ class LsquicServer : public QuicServer
   void close_socket();
   
 public:
-  static constexpr const char * DEFAULT_QLOG_PATH = "tunnel-out-logs";
+  static constexpr const char * DEFAULT_QLOG_PATH = "tunnel-in-logs";
   static constexpr const char * IMPL_NAME = "lsquic";
   
-  explicit LsquicServer(const std::string& host, uint16_t port, out::UdpSocket * udp_socket);
-  ~LsquicServer() override;
+  LsquicClient(std::string host, int port) noexcept;
+  ~LsquicClient() = default;
 
-  static Capabilities get_capabilities();
-  
-  void set_qlog_filename(std::string file_name) override;
+  // -- quic client interface
+  void set_qlog_filename(std::string filename) noexcept override;
+  std::string_view get_qlog_path()   const noexcept override;
+  std::string_view get_qlog_filename() const noexcept override;
 
-  ssize_t recv();
-  void start() override;
-
-  std::string_view get_qlog_path() const noexcept override { return DEFAULT_QLOG_PATH; }
-  std::string_view get_qlog_filename() const noexcept override { return DEFAULT_QLOG_PATH; }
-  bool set_datagrams(bool enable) override;
-  
   bool set_cc(std::string_view cc) noexcept override;
+  void start() override;
   void stop() override;
+  void send_message_stream(const char * buffer, size_t len) override;
+  void send_message_datagram(const char * buffer, size_t len) override;
 
   SSL_CTX* get_ssl_ctx() { return _ssl_ctx; }
-  ssl_ctx_st* get_cert_ctx() { return _cert_ctx; }
   
   // lsquic callback
   lsquic_conn_ctx_t   * on_new_conn(lsquic_conn_t *conn);
@@ -95,8 +88,10 @@ public:
   void on_read(lsquic_stream_t * stream);
   void on_write(lsquic_stream_t * stream);
   void on_stream_close(lsquic_stream_t * stream);
-  int send_packets_out(const struct lsquic_out_spec *specs, unsigned n_specs);
-
+  // int send_packets_out(const struct lsquic_out_spec *specs, unsigned n_specs);
+  
+  static Capabilities get_capabilities();
 };
 
-#endif /* LSQUIC_SERVER_H */
+
+#endif /* LSQUIC_CLIENT_H */
