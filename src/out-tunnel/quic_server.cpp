@@ -2,6 +2,7 @@
 #include "mvfst/mvfst_server.h"
 #include "quicgo/quicgo_server.h"
 #include "lsquic/lsquic_server.h"
+#include "quiche/quiche_server.h"
 #include "tcp/tcp_server.h"
 #include "udp/udp_server.h"
 
@@ -26,6 +27,8 @@ std::unique_ptr<QuicServer> QuicServerBuilder::create() const
     return std::make_unique<QuicGoServer>(host, port, udp_socket);
   case QuicImplementation::LSQUIC:
     return std::make_unique<LsquicServer>(host, port, udp_socket);
+  case QuicImplementation::QUICHE:
+    return std::make_unique<QuicheServer>(host, port, udp_socket);
   case QuicImplementation::TCP:
     return std::make_unique<TcpServer>(dst_host, dst_port, port, udp_socket);
   case QuicImplementation::UDP:
@@ -40,6 +43,7 @@ void QuicServerBuilder::get_capabilities(std::vector<Capabilities>& cap)
   cap.push_back(MvfstServer::get_capabilities());
   cap.push_back(QuicGoServer::get_capabilities());
   cap.push_back(LsquicServer::get_capabilities());
+  cap.push_back(QuicheServer::get_capabilities());
   cap.push_back(TcpServer::get_capabilities());
   cap.push_back(UdpServer::get_capabilities());
 }

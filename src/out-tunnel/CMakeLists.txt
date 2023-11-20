@@ -14,14 +14,18 @@ target_sources( quic-tunnel PRIVATE
 
   udp/udp_server.cpp
   udp/udp_server.h
+
+  
   )
 
 add_subdirectory( mvfst )
 add_subdirectory( quicgo )
 add_subdirectory( lsquic )
+add_subdirectory( quiche )
 
 target_link_libraries( quic-tunnel PRIVATE
   lsquic::server
   mvfst::server
   quicgo::server
+  quiche::server
   )

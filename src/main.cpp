@@ -163,9 +163,9 @@ int main(int argc, char *argv[])
   }
 
   if(*mode == "client") {
-    InTunnel in(0, "mvfst", quic_server_host, quic_port);
+    InTunnel in(0, "quiche", quic_server_host, quic_port);
     in.allocate_in_port();
-    in.set_datagram(false);
+    in.set_datagram(true);
 
     __in__ = &in;
     
@@ -174,8 +174,8 @@ int main(int argc, char *argv[])
     in.run();
   }
   else if(*mode == "server") {
-    OutTunnel out(0, "lsquic", turn_addr, quic_port, turn_port);
-    out.set_datagrams(false);
+    OutTunnel out(0, "quiche", turn_addr, quic_port, turn_port);
+    out.set_datagrams(true);
 
     __out__ = &out;    
     signal(SIGINT, onstop<OutTunnel>);

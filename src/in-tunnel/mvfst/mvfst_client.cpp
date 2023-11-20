@@ -9,8 +9,7 @@ MvfstClient::MvfstClient(std::string_view host, uint16_t port, std::string qlog_
   : _qlog_path(std::move(qlog_path)),
     _addr(host.data(), port),
     _network_thread("QuicTransportThread")
-{
-}
+{}
 
 Capabilities MvfstClient::get_capabilities()
 {

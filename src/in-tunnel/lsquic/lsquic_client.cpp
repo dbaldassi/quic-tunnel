@@ -203,6 +203,8 @@ void LsquicClient::start()
   _conn = lsquic_engine_connect(_engine, N_LSQVER,
 				(struct sockaddr *)&_addr_local, (struct sockaddr *)&_addr_peer,
 				(void *)this, NULL, NULL, 0, NULL, 0, NULL, 0);
+
+  
 }
 
 void LsquicClient::stop()

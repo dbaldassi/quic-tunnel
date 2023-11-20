@@ -19,6 +19,7 @@ target_sources( quic-tunnel PRIVATE
 add_subdirectory( mvfst )
 add_subdirectory( quicgo )
 add_subdirectory( lsquic )
+add_subdirectory( quiche )
 
 target_include_directories( quic-tunnel PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
@@ -28,4 +29,5 @@ target_link_libraries( quic-tunnel PRIVATE
   lsquic::client
   mvfst::client
   quicgo::client
+  quiche::client
   )

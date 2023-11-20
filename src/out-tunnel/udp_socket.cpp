@@ -54,7 +54,7 @@ void UdpSocket::start()
       // printf("rec_len: %ld\n", rlen);
 
       if(rlen == -1) {
-	perror("some error ? ");
+	// perror("some error ? ");
 	if(_socket == -1) {
 	  puts("Closing UDP socket");
 	  return;
