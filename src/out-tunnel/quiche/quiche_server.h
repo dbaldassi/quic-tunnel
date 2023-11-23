@@ -73,7 +73,7 @@ public:
   socklen_t get_local_addr_len() const { return _local_len; }
   
   std::string_view get_qlog_path() const noexcept override { return DEFAULT_QLOG_PATH; }
-  std::string_view get_qlog_filename() const noexcept override { return DEFAULT_QLOG_PATH; }
+  std::string_view get_qlog_filename() const noexcept override { return _qlog_file; }
   bool set_datagrams(bool enable) override;
   
   bool set_cc(std::string_view cc) noexcept override;

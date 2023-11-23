@@ -18,6 +18,7 @@ class quiche_conn;
 struct ev_loop;
 struct ev_timer;
 struct ev_io;
+struct ev_async;
 struct conn_io;
 
 class QuicheClient final : public QuicClient
@@ -45,8 +46,9 @@ class QuicheClient final : public QuicClient
   std::atomic<bool>       _start;
 
   std::unique_ptr<ev_timer> _timer;
-  struct ev_loop * _loop;
-  std::unique_ptr<ev_io> _watcher;
+  std::unique_ptr<ev_async> _async_watcher;
+  std::unique_ptr<ev_io>    _watcher;
+  struct ev_loop  * _loop;
 
   quiche_config * _config;
   quiche_conn   * _conn;

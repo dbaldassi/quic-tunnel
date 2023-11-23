@@ -3,6 +3,8 @@
 #include <quiche.h>
 
 #include <fmt/core.h>
+#include <fmt/ranges.h>
+
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -11,6 +13,7 @@
 #include <ev.h>
 #include <uthash.h>
 #include <cinttypes>
+#include <array>
 
 #define LOCAL_CONN_ID_LEN 16
 
@@ -48,7 +51,6 @@ static void flush_egress(struct ev_loop *loop, struct conn_io *conn_io)
 				       &send_info);
 
     if (written == QUICHE_ERR_DONE) {
-      fprintf(stderr, "done writing\n");
       break;
     }
 
@@ -65,8 +67,6 @@ static void flush_egress(struct ev_loop *loop, struct conn_io *conn_io)
       perror("failed to send");
       return;
     }
-
-    fprintf(stderr, "sent %zd bytes\n", sent);
   }
 
   double t = quiche_conn_timeout_as_nanos(conn_io->conn) / 1e9f;
@@ -84,9 +84,6 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
   static uint8_t buf[65535];
   
   struct conn_io *conn_io = (struct conn_io*)w->data;
-  // static bool req_sent = false;
-
-  // fmt::print("recv_cb\n");
   
   while (1) {
     struct sockaddr_storage peer_addr;
@@ -121,72 +118,39 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
       fprintf(stderr, "failed to process packet\n");
       continue;
     }
-
-    fprintf(stderr, "recv %zd bytes\n", done);
   }
 
-  fprintf(stderr, "done reading\n");
 
   if (quiche_conn_is_closed(conn_io->conn)) {
     fprintf(stderr, "connection closed\n");
-
     ev_break(EV_A_ EVBREAK_ONE);
     return;
   }
 
-  // if (quiche_conn_is_established(conn_io->conn) && !req_sent) {
-  //   const uint8_t *app_proto;
-  //   size_t app_proto_len;
-
-  //   quiche_conn_application_proto(conn_io->conn, &app_proto, &app_proto_len);
-
-  //   fprintf(stderr, "connection established: %.*s\n",
-  // 	    (int) app_proto_len, app_proto);
-
-  //   const static uint8_t r[] = "GET /index.html\r\n";
-  //   if (quiche_conn_stream_send(conn_io->conn, 4, r, sizeof(r), true) < 0) {
-  //     fprintf(stderr, "failed to send HTTP request\n");
-  //     return;
-  //   }
-
-  //   fprintf(stderr, "sent HTTP request\n");
-
-  //   req_sent = true;
-  // }
-  
   if (quiche_conn_is_established(conn_io->conn)) {
     uint64_t s = 0;
 
     quiche_stream_iter *readable = quiche_conn_readable(conn_io->conn);
 
     while (quiche_stream_iter_next(readable, &s)) {
-      fprintf(stderr, "stream %" PRIu64 " is readable\n", s);
-
       bool fin = false;
       ssize_t recv_len = quiche_conn_stream_recv(conn_io->conn, s,
 						 buf, sizeof(buf),
 						 &fin);
       if (recv_len < 0) break;
-      
-      printf("%.*s", (int) recv_len, buf);
-      
+            
       conn_io->client->recv_cb(buf, recv_len);
       
-      // if (fin) {
-      // 	if (quiche_conn_close(conn_io->conn, true, 0, NULL, 0) < 0) {
-      // 	  fprintf(stderr, "failed to close connection\n");
-      // 	}
-      // }
+      if (fin) {
+	quiche_conn_stream_shutdown(conn_io->conn, s, QUICHE_SHUTDOWN_READ, 0);
+	quiche_conn_stream_shutdown(conn_io->conn, s, QUICHE_SHUTDOWN_WRITE, 0);
+      }
     }
 
     quiche_stream_iter_free(readable);
 
     if(auto dgram_len = quiche_conn_dgram_recv(conn_io->conn, buf, sizeof(buf)); dgram_len >= 0) {
-      fmt::print("Dgram recv {}\n", dgram_len);
       conn_io->client->recv_cb(buf, dgram_len);
-    }
-    else {
-      fmt::print("No dgram {}\n", dgram_len);
     }
   }
 
@@ -197,8 +161,6 @@ static void timeout_cb(EV_P_ ev_timer *w, int revents)
 {
   struct conn_io *conn_io = (struct conn_io*)w->data;
   quiche_conn_on_timeout(conn_io->conn);
-
-  fprintf(stderr, "timeout\n");
 
   flush_egress(loop, conn_io);
 
@@ -217,10 +179,15 @@ static void timeout_cb(EV_P_ ev_timer *w, int revents)
   }
 }
 
+static void async_callback(EV_P_ ev_async*, int)
+{
+  ev_break(EV_A_ EVBREAK_ONE);
+}
+  
 }
 
 QuicheClient::QuicheClient(std::string host, int port) noexcept
-  : _host(std::move(host)), _port(port)
+  : _host(std::move(host)), _port(port), _qlog_dir(DEFAULT_QLOG_PATH)
 {
   auto ver = quiche_version();
   fmt::print("Quiche version : {}\n", ver);
@@ -263,7 +230,7 @@ QuicheClient::~QuicheClient()
 // -- quic client interface
 void QuicheClient::set_qlog_filename(std::string filename) noexcept
 {
-
+  _qlog_filename = std::move(filename);
 }
 
 std::string_view QuicheClient::get_qlog_path()   const noexcept
@@ -278,7 +245,22 @@ std::string_view QuicheClient::get_qlog_filename() const noexcept
 
 bool QuicheClient::set_cc(std::string_view cc) noexcept
 {
-  
+  if(cc == "newreno") {
+    quiche_config_set_cc_algorithm(_config, QUICHE_CC_RENO);
+  }
+  else if(cc == "cubic") {
+    quiche_config_set_cc_algorithm(_config, QUICHE_CC_CUBIC);
+  }
+  else if(cc == "BBRv1") {
+    quiche_config_set_cc_algorithm(_config, QUICHE_CC_BBR);
+  }
+  else if(cc == "BBRv2") {
+    quiche_config_set_cc_algorithm(_config, QUICHE_CC_BBR2);
+  }
+  else {
+    fmt::print("Requested cc {} does not exist\n", cc);
+    return false;
+  }
   
   return true;
 }
@@ -324,14 +306,14 @@ void QuicheClient::close_socket()
 
 void QuicheClient::start()
 {
-  uint8_t scid[LOCAL_CONN_ID_LEN];
+  std::array<uint8_t, LOCAL_CONN_ID_LEN> scid;
   int rng = open("/dev/urandom", O_RDONLY);
   if (rng < 0) {
     perror("failed to open /dev/urandom");
     std::exit(-1);
   }
 
-  ssize_t rand_len = read(rng, &scid, sizeof(scid));
+  ssize_t rand_len = read(rng, scid.data(), scid.size());
   if (rand_len < 0) {
     perror("failed to create connection ID");
     std::exit(-1);
@@ -347,7 +329,7 @@ void QuicheClient::start()
     std::exit(-1);
   };
 
-  _conn = quiche_connect(_host.c_str(), (const uint8_t *) scid, sizeof(scid),
+  _conn = quiche_connect(_host.c_str(), (const uint8_t *) scid.data(), scid.size(),
 			 (struct sockaddr *) &conn_io->local_addr,
 			 conn_io->local_addr_len,
 			 _peer_info->ai_addr, _peer_info->ai_addrlen, _config);
@@ -357,6 +339,16 @@ void QuicheClient::start()
     std::exit(-1);
   }
 
+  _qlog_filename = fmt::format("{}.qlog", fmt::join(scid, ""));
+  auto qfile = fmt::format("{}/{}", _qlog_dir, _qlog_filename);
+
+  if(quiche_conn_set_qlog_path(_conn, qfile.c_str(), "quiche-client qlog", "quiche-client qlog")) {
+    fmt::print("Sucessfully enable qlog, file {}\n", qfile);
+  }
+  else {
+    fmt::print("Failed to enable qlog, file {}\n", qfile);
+  }
+  
   conn_io->sock = _socket;
   conn_io->conn = _conn;
   conn_io->client = this;
@@ -373,42 +365,45 @@ void QuicheClient::start()
   
   flush_egress(_loop, conn_io);
 
-  _th = std::thread([this](){ ev_loop(_loop, 0); });
+  _th = std::thread([this](){ ev_run(_loop, 0); });
 }
 
 void QuicheClient::stop()
 {
+  fmt::print("Stopping the quiche client\n");
+  quiche_conn_close(_conn, true, 0, NULL, 0);
+
+  ev_timer_stop(_loop, &conn_io->timer);
+
+  _async_watcher = std::make_unique<ev_async>();
+  ev_async_init(_async_watcher.get(), async_callback);
+  ev_async_start(_loop, _async_watcher.get());
+  ev_async_send(_loop, _async_watcher.get());
+  
+  _th.join();
+
   quiche_conn_free(_conn);
+  free(conn_io);
+
+  conn_io = nullptr;
+  _conn = nullptr;
+  
   freeaddrinfo(_peer_info);
   close(_socket);
 }
 
 void QuicheClient::send_message_stream(const char * buffer, size_t len)
 {
-  // _stream_id = quiche_conn_stream_writable_next(_conn);
-  // fmt::print("Sending to stream {}, Writable ? {} \n", _stream_id, quiche_conn_stream_writable(_conn, _stream_id, len));
-  // fmt::print("Left uni : {}, left bidi {}, next {}\n", quiche_conn_peer_streams_left_uni(_conn),
-  // 	     quiche_conn_peer_streams_left_bidi(_conn),
-  // 	     quiche_conn_stream_readable_next(_conn));
-
-  // auto it = quiche_conn_writable(_conn);
-
-  // uint64_t id;
-  // while(quiche_stream_iter_next(it, &id)) {
-  //   fmt::print("{} writable\n", id);
-  // }
+  uint64_t id = (_stream_id << 2) | 0x02;
   
-  // if (int err = quiche_conn_stream_send(_conn, _stream_id, (const uint8_t*)buffer, len, true); err < 0) {
-  //   fmt::print("failed to send HTTP request {}\n", err);
-  // }
-  // else {
-  //   fmt::print("successfully sent id\n\n");
-  //   flush_egress(_loop, conn_io);
-  // }
+  if (int err = quiche_conn_stream_send(_conn, id, (const uint8_t*)buffer, len, true); err < 0) {
+    fmt::print("failed to send HTTP request {}\n", err);
+  }
+  else {
+    flush_egress(_loop, conn_io);
+  }
 
-  // _stream_id++;
-
-  send_message_datagram(buffer, len);
+  _stream_id++;
 }
 
 void QuicheClient::send_message_datagram(const char * buffer, size_t len)
@@ -436,8 +431,8 @@ Capabilities QuicheClient::get_capabilities()
   caps.datagrams = true;
   caps.streams = true;
   
-  caps.cc.push_back("NewReno");
-  caps.cc.push_back("Cubic");
+  caps.cc.push_back("newreno");
+  caps.cc.push_back("cubic");
   caps.cc.push_back("BBRv1");
   caps.cc.push_back("BBRv2");
 

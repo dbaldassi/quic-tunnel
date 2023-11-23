@@ -81,15 +81,16 @@ enum OptInd : uint8_t {
 
 InTunnel * __in__;
 OutTunnel * __out__;
+std::thread __stop_thread__;
 
 template<typename T>
 void onstop(int sig)
 {
   if constexpr (std::is_same_v<InTunnel, T>) {
-    __in__->stop();
+    __stop_thread__ = std::thread([](){__in__->stop();});
   }
   else {
-    __out__->stop();
+     __stop_thread__ = std::thread([](){__out__->stop();});
   }
 }
 
@@ -165,22 +166,26 @@ int main(int argc, char *argv[])
   if(*mode == "client") {
     InTunnel in(0, "quiche", quic_server_host, quic_port);
     in.allocate_in_port();
-    in.set_datagram(true);
+    in.set_datagram(false);
 
     __in__ = &in;
     
     signal(SIGINT, onstop<InTunnel>);
     
     in.run();
+
+    if(__stop_thread__.joinable()) __stop_thread__.join();
   }
   else if(*mode == "server") {
     OutTunnel out(0, "quiche", turn_addr, quic_port, turn_port);
-    out.set_datagrams(true);
+    out.set_datagrams(false);
 
     __out__ = &out;    
     signal(SIGINT, onstop<OutTunnel>);
     
     out.run();
+
+    if(__stop_thread__.joinable()) __stop_thread__.join();
   }
   else if(*mode == "websocket") {  
     // init tc
