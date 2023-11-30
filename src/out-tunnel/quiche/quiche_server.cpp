@@ -7,6 +7,7 @@
 #include <array>
 #include <span>
 #include <algorithm>
+#include <mutex>
 
 #include <unistd.h>
 
@@ -18,13 +19,42 @@
 #include <ev.h>
 #include <cinttypes>
 
-#define MAX_DATAGRAM_SIZE 2500
-#define LOCAL_CONN_ID_LEN 16
+constexpr size_t LOCAL_CONN_ID_LEN = 16;
+constexpr size_t MAX_DATAGRAM_SIZE = 2500;
+
+std::mutex server_flush_mutex;
 
 #define MAX_TOKEN_LEN \
     sizeof("quiche") - 1 + \
     sizeof(struct sockaddr_storage) + \
     QUICHE_MAX_CONN_ID_LEN
+
+
+static std::string get_quiche_error(ssize_t code)
+{
+  switch(code) {
+  case QUICHE_ERR_DONE: return "QUICHE_ERR_DONE";
+  case QUICHE_ERR_BUFFER_TOO_SHORT: return "QUICHE_ERR_BUFFER_TOO_SHORT";
+  case QUICHE_ERR_UNKNOWN_VERSION: return "QUICHE_ERR_UNKNOWN_VERSION";
+  case QUICHE_ERR_INVALID_FRAME: return "QUICHE_ERR_INVALID_FRAME";
+  case QUICHE_ERR_INVALID_PACKET: return "QUICHE_ERR_INVALID_PACKET";
+  case QUICHE_ERR_INVALID_STATE: return "QUICHE_ERR_INVALID_STATE";
+  case QUICHE_ERR_INVALID_STREAM_STATE: return "QUICHE_ERR_INVALID_STREAM_STATE";
+  case QUICHE_ERR_INVALID_TRANSPORT_PARAM: return "QUICHE_ERR_INVALID_TRANSPORT_PARAM";
+  case QUICHE_ERR_CRYPTO_FAIL: return "QUICHE_ERR_CRYPTO_FAIL";
+  case QUICHE_ERR_TLS_FAIL: return "QUICHE_ERR_TLS_FAIL";
+  case QUICHE_ERR_FLOW_CONTROL: return "QUICHE_ERR_FLOW_CONTROL";
+  case QUICHE_ERR_STREAM_LIMIT: return "QUICHE_ERR_STREAM_LIMIT";
+  case QUICHE_ERR_STREAM_STOPPED: return "QUICHE_ERR_STREAM_STOPPED";
+  case QUICHE_ERR_STREAM_RESET: return "QUICHE_ERR_STREAM_RESET";
+  case QUICHE_ERR_FINAL_SIZE: return "QUICHE_ERR_FINAL_SIZE";
+  case QUICHE_ERR_CONGESTION_CONTROL: return "QUICHE_ERR_CONGESTION_CONTROL";
+  case QUICHE_ERR_ID_LIMIT: return "QUICHE_ERR_ID_LIMIT";
+  case QUICHE_ERR_OUT_OF_IDENTIFIERS: return "QUICHE_ERR_OUT_OF_IDENTIFIERS";
+  case QUICHE_ERR_KEY_UPDATE: return "QUICHE_ERR_KEY_UPDATE";
+  default: return "Unknown quiche error";
+  }
+}
 
 extern "C"
 {
@@ -34,36 +64,33 @@ struct conn_io
   ev_timer timer;
 
   int sock;
-
+  
   uint8_t cid[LOCAL_CONN_ID_LEN];
 
   quiche_conn *conn;
 
   struct sockaddr_storage peer_addr;
-  socklen_t peer_addr_len;
+  socklen_t               peer_addr_len;
 };
 
 struct timeout_cb_data
 {
   struct conn_io * conn_io;
-  QuicheServer * server;
+  QuicheServer   * server;
 };
   
 static void flush_egress(struct ev_loop *loop, struct conn_io *conn_io)
-{
-  static uint8_t out[MAX_DATAGRAM_SIZE];
+{  
+  static uint8_t out[65535];
 
   quiche_send_info send_info;
 
   while (1) {
-    ssize_t written = quiche_conn_send(conn_io->conn, out, sizeof(out),
-				       &send_info);
+    std::lock_guard<std::mutex> lock(server_flush_mutex);
+    ssize_t written = quiche_conn_send(conn_io->conn, out, sizeof(out), &send_info);
 
-    if (written == QUICHE_ERR_DONE) {
-      fprintf(stderr, "done writing\n");
-      break;
-    }
-
+    if (written == QUICHE_ERR_DONE) break;
+    
     if (written < 0) {
       fprintf(stderr, "failed to create packet: %zd\n", written);
       return;
@@ -77,8 +104,6 @@ static void flush_egress(struct ev_loop *loop, struct conn_io *conn_io)
       perror("failed to send");
       return;
     }
-
-    fprintf(stderr, "sent %zd bytes\n", sent);
   }
 
   double t = quiche_conn_timeout_as_nanos(conn_io->conn) / 1e9f;
@@ -90,40 +115,40 @@ static void mint_token(const uint8_t *dcid, size_t dcid_len,
                        struct sockaddr_storage *addr, socklen_t addr_len,
                        uint8_t *token, size_t *token_len)
 {
-    memcpy(token, "quiche", sizeof("quiche") - 1);
-    memcpy(token + sizeof("quiche") - 1, addr, addr_len);
-    memcpy(token + sizeof("quiche") - 1 + addr_len, dcid, dcid_len);
+  memcpy(token, "quiche", sizeof("quiche") - 1);
+  memcpy(token + sizeof("quiche") - 1, addr, addr_len);
+  memcpy(token + sizeof("quiche") - 1 + addr_len, dcid, dcid_len);
 
-    *token_len = sizeof("quiche") - 1 + addr_len + dcid_len;
+  *token_len = sizeof("quiche") - 1 + addr_len + dcid_len;
 }
 
 static bool validate_token(const uint8_t *token, size_t token_len,
                            struct sockaddr_storage *addr, socklen_t addr_len,
                            uint8_t *odcid, size_t *odcid_len)
 {
-    if ((token_len < sizeof("quiche") - 1) ||
-         memcmp(token, "quiche", sizeof("quiche") - 1)) {
-        return false;
-    }
+  if ((token_len < sizeof("quiche") - 1) ||
+      memcmp(token, "quiche", sizeof("quiche") - 1)) {
+    return false;
+  }
 
-    token += sizeof("quiche") - 1;
-    token_len -= sizeof("quiche") - 1;
+  token += sizeof("quiche") - 1;
+  token_len -= sizeof("quiche") - 1;
 
-    if ((token_len < addr_len) || memcmp(token, addr, addr_len)) {
-        return false;
-    }
+  if ((token_len < addr_len) || memcmp(token, addr, addr_len)) {
+    return false;
+  }
 
-    token += addr_len;
-    token_len -= addr_len;
+  token += addr_len;
+  token_len -= addr_len;
 
-    if (*odcid_len < token_len) {
-        return false;
-    }
+  if (*odcid_len < token_len) {
+    return false;
+  }
 
-    memcpy(odcid, token, token_len);
-    *odcid_len = token_len;
+  memcpy(odcid, token, token_len);
+  *odcid_len = token_len;
 
-    return true;
+  return true;
 }
 
 static uint8_t *gen_cid(uint8_t *cid, size_t cid_len)
@@ -216,11 +241,9 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
   struct conn_io *tmp, *conn_io = NULL;
 
   static uint8_t buf[65535];
-  static uint8_t out[MAX_DATAGRAM_SIZE];
+  static uint8_t out[65535];
 
   QuicheServer* server = reinterpret_cast<QuicheServer*>(w->data);
-
-  fmt::print("recv_cb\n");
   
   while (1) {
     struct sockaddr_storage peer_addr;
@@ -232,11 +255,7 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
 			    &peer_addr_len);
 
     if (read < 0) {
-      if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) {
-	fprintf(stderr, "recv would block\n");
-	break;
-      }
-
+      if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) break; 
       perror("failed to read");
       return;
     }
@@ -308,8 +327,7 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
 				       version, out, sizeof(out));
 
 	if (written < 0) {
-	  fprintf(stderr, "failed to create retry packet: %zd\n",
-		  written);
+	  fprintf(stderr, "failed to create retry packet: %zd\n", written);
 	  continue;
 	}
 
@@ -335,9 +353,8 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
 			    server->get_local_addr(), server->get_local_addr_len(),
 			    &peer_addr, peer_addr_len, server);
 
-      if (conn_io == NULL) {
-	continue;
-      }
+      if (conn_io == NULL) continue;
+      
     }
 
     quiche_recv_info recv_info = {
@@ -348,10 +365,14 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
       server->get_local_addr_len(),
     };
 
-    ssize_t done = quiche_conn_recv(server->get_conn(), buf, read, &recv_info);
+    ssize_t done;
+    {
+      std::lock_guard<std::mutex> lock(server_flush_mutex);
+      done = quiche_conn_recv(server->get_conn(), buf, read, &recv_info);
+    }
 
     if (done < 0) {
-      fprintf(stderr, "failed to process packet: %zd\n", done);
+      fmt::print("Failed to process packet: {} {}\n", done, get_quiche_error(done));
       continue;
     }
 
@@ -361,20 +382,16 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
       quiche_stream_iter *readable = quiche_conn_readable(server->get_conn());
 
       while (quiche_stream_iter_next(readable, &s)) {
+	std::lock_guard<std::mutex> lock(server_flush_mutex);
+	
 	bool fin = false;
 	ssize_t recv_len = quiche_conn_stream_recv(server->get_conn(), s,
 						   buf, sizeof(buf),
 						   &fin);
-	
-	if (recv_len < 0) {
-	  break;
-	}
 
+	if (recv_len < 0) break;
+	
 	server->on_recv(buf, recv_len);
-	if (fin) {
-	  quiche_conn_stream_shutdown(server->get_conn(), s, QUICHE_SHUTDOWN_READ, 0);
-	  quiche_conn_stream_shutdown(server->get_conn(), s, QUICHE_SHUTDOWN_WRITE, 0);
-	}
       }
 
       quiche_stream_iter_free(readable);
@@ -387,7 +404,7 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
 
   if(conn_io) {
     flush_egress(loop, conn_io);
-
+    
     if (quiche_conn_is_closed(conn_io->conn)) {
       quiche_stats stats;
       quiche_path_stats path_stats;
@@ -434,7 +451,8 @@ static void timeout_cb(EV_P_ ev_timer *w, int revents)
 
 static void debug_log(const char *line, void *argp)
 {
-  fmt::print("{}\n", line);
+  std::FILE * debug_file = std::fopen("quiche_server_log.txt", "w");
+  fmt::print(debug_file, "{}\n", line);
 }
 
 static void async_callback(EV_P_ ev_async*, int)
@@ -445,11 +463,15 @@ static void async_callback(EV_P_ ev_async*, int)
 }
 
 QuicheServer::QuicheServer(const std::string& host, uint16_t port, out::UdpSocket * udp_socket)
-  : _host(host), _port(port), _udp_socket(udp_socket), conn_io(nullptr), _conn(nullptr), _loop(nullptr), _socket{-1}
+  : _host(host), _port(port), _udp_socket(udp_socket), conn_io(nullptr), _conn(nullptr), _loop(nullptr), _socket{-1}, _stream_id{0}
 {
   auto ver = quiche_version();
   fmt::print("Quiche version : {}\n", ver);
 
+#ifdef QUICHE_DEBUG
+  quiche_enable_debug_logging(debug_log, NULL);
+#endif
+  
   _config = quiche_config_new(QUICHE_PROTOCOL_VERSION);
   if(!_config) {
     fmt::print("QUICHE error, could not create config\n");
@@ -487,8 +509,7 @@ QuicheServer::QuicheServer(const std::string& host, uint16_t port, out::UdpSocke
   quiche_config_set_initial_max_streams_bidi(_config, 100);
   quiche_config_set_initial_max_streams_uni(_config, 100);
   quiche_config_set_cc_algorithm(_config, QUICHE_CC_RENO);
-
-  quiche_enable_debug_logging(debug_log, NULL);
+  quiche_config_set_disable_active_migration(_config, true);
   
   fmt::print("Seems everything went well\n");
 }
@@ -569,7 +590,7 @@ void QuicheServer::start()
 
 bool QuicheServer::set_datagrams(bool enable)
 {
-  _datagrams = true;
+  _datagrams = enable;
   return true;
 }
 
@@ -597,6 +618,8 @@ bool QuicheServer::set_cc(std::string_view cc) noexcept
 
 void QuicheServer::stop()
 {
+  _udp_socket->close();
+  
   if(_conn) {
     quiche_conn_close(_conn, true, 0, NULL, 0);
     quiche_conn_free(_conn);
@@ -634,16 +657,20 @@ void QuicheServer::on_recv(const uint8_t * buf, size_t len)
 void QuicheServer::onUdpMessage(const char* buffer, size_t len) noexcept
 {
   if(_datagrams) {
+    std::lock_guard<std::mutex> lock(server_flush_mutex);
+    
     if (quiche_conn_dgram_send(_conn, (const uint8_t*)buffer, len) < 0) {
-      fprintf(stderr, "failed to send HTTP request\n");
+      fmt::print("Failed to send data in dgram\n");
       return;
     }
   }
   else {
+    std::lock_guard<std::mutex> lock(server_flush_mutex);
+    
     uint64_t id = (_stream_id++ << 2) | 0x03;
     
-    if (quiche_conn_stream_send(_conn, id, (const uint8_t*)buffer, len, true) < 0) {
-      fprintf(stderr, "failed to send HTTP request\n");
+    if (auto code = quiche_conn_stream_send(_conn, id, (const uint8_t*)buffer, len, true); code < 0) {
+      fmt::print("Failed to send data in stream, id {}, error {} : {}\n", id, code, get_quiche_error(code));
       return;
     }
   }

@@ -36,7 +36,9 @@ RUN apt-get update && apt-get install -y \
     python3-pip               \
     socat                     \
     iproute2                  \
-    moreutils
+    moreutils                 \
+    libfmt-dev                \
+    libev-dev
 
 RUN pip3 install matplotlib
 
@@ -44,6 +46,11 @@ WORKDIR /opt
 
 COPY mvfst mvfst
 COPY go go
+COPY lsquic lsquic
+COPY quiche quiche
+COPY boringssl boringssl
+COPY cert.pem cert.pem
+COPY key.pem key.pem
 
 ENV PATH="${PATH}:/opt/go/bin"
 

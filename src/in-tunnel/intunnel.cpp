@@ -167,7 +167,7 @@ std::shared_ptr<InTunnel> InTunnel::create(std::string_view impl,
 					   std::string_view server_addr,
 					   uint16_t server_port)
 {
-  fmt::print("Create new mvfst client \n");
+  fmt::print("Create new quic client \n");
   
   auto id     = _random_generator();
   if(id == -1) return nullptr;

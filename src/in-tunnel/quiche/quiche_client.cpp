@@ -11,49 +11,46 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <ev.h>
-#include <uthash.h>
 #include <cinttypes>
 #include <array>
 
-#define LOCAL_CONN_ID_LEN 16
+constexpr size_t LOCAL_CONN_ID_LEN = 16;
+constexpr size_t MAX_DATAGRAM_SIZE = 2500;
 
-#define MAX_DATAGRAM_SIZE 2500
+static std::mutex client_flush_mutex;
 
 extern "C"
 {
 
 struct conn_io {
   ev_timer timer;
-
-  int sock;
+  int      sock;
 
   struct sockaddr_storage local_addr;
-  socklen_t local_addr_len;
+  socklen_t               local_addr_len;
   
-  quiche_conn *conn;
+  quiche_conn  * conn;
   QuicheClient * client;
 };
 
 struct timeout_cb_data
 {
   struct conn_io * conn_io;
-  QuicheClient * server;
+  QuicheClient   * server;
 };
   
 static void flush_egress(struct ev_loop *loop, struct conn_io *conn_io)
 {
-  static uint8_t out[MAX_DATAGRAM_SIZE];
+  static uint8_t out[65535];
 
   quiche_send_info send_info;
 
   while (1) {
-    ssize_t written = quiche_conn_send(conn_io->conn, out, sizeof(out),
-				       &send_info);
+    std::lock_guard<std::mutex> lock(client_flush_mutex);
+    ssize_t written = quiche_conn_send(conn_io->conn, out, sizeof(out), &send_info);
 
-    if (written == QUICHE_ERR_DONE) {
-      break;
-    }
-
+    if (written == QUICHE_ERR_DONE) break;
+    
     if (written < 0) {
       fprintf(stderr, "failed to create packet: %zd\n", written);
       return;
@@ -69,6 +66,9 @@ static void flush_egress(struct ev_loop *loop, struct conn_io *conn_io)
     }
   }
 
+  auto uni = quiche_conn_peer_streams_left_uni(conn_io->conn);
+  auto bidi = quiche_conn_peer_streams_left_bidi(conn_io->conn);
+
   double t = quiche_conn_timeout_as_nanos(conn_io->conn) / 1e9f;
   conn_io->timer.repeat = t;
   ev_timer_again(loop, &conn_io->timer);
@@ -76,7 +76,8 @@ static void flush_egress(struct ev_loop *loop, struct conn_io *conn_io)
 
 static void debug_log(const char *line, void *argp)
 {
-  fmt::print("{}\n", line);
+  std::FILE * logfile = std::fopen("quiche_log.txt", "w");
+  fmt::print(logfile, "{}\n", line);
 }
 
 static void recv_cb(EV_P_ ev_io *w, int revents)
@@ -95,10 +96,7 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
 			    &peer_addr_len);
 
     if (read < 0) {
-      if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) {
-	fprintf(stderr, "recv would block\n");
-	break;
-      }
+      if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) break;
 
       perror("failed to read");
       return;
@@ -112,14 +110,21 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
       conn_io->local_addr_len,
     };
 
-    ssize_t done = quiche_conn_recv(conn_io->conn, buf, read, &recv_info);
+    auto uni = quiche_conn_peer_streams_left_uni(conn_io->conn);
+    auto bidi = quiche_conn_peer_streams_left_bidi(conn_io->conn);
+
+    ssize_t done;
+
+    {
+      std::lock_guard<std::mutex> lock(client_flush_mutex);
+      done = quiche_conn_recv(conn_io->conn, buf, read, &recv_info);
+    }
 
     if (done < 0) {
       fprintf(stderr, "failed to process packet\n");
       continue;
     }
   }
-
 
   if (quiche_conn_is_closed(conn_io->conn)) {
     fprintf(stderr, "connection closed\n");
@@ -131,8 +136,10 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
     uint64_t s = 0;
 
     quiche_stream_iter *readable = quiche_conn_readable(conn_io->conn);
-
+    
     while (quiche_stream_iter_next(readable, &s)) {
+      std::lock_guard<std::mutex> lock(client_flush_mutex);
+      
       bool fin = false;
       ssize_t recv_len = quiche_conn_stream_recv(conn_io->conn, s,
 						 buf, sizeof(buf),
@@ -140,11 +147,6 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
       if (recv_len < 0) break;
             
       conn_io->client->recv_cb(buf, recv_len);
-      
-      if (fin) {
-	quiche_conn_stream_shutdown(conn_io->conn, s, QUICHE_SHUTDOWN_READ, 0);
-	quiche_conn_stream_shutdown(conn_io->conn, s, QUICHE_SHUTDOWN_WRITE, 0);
-      }
     }
 
     quiche_stream_iter_free(readable);
@@ -192,6 +194,10 @@ QuicheClient::QuicheClient(std::string host, int port) noexcept
   auto ver = quiche_version();
   fmt::print("Quiche version : {}\n", ver);
 
+#ifdef QUICHE_DEBUG
+  quiche_enable_debug_logging(debug_log, NULL);
+#endif
+  
   _config = quiche_config_new(QUICHE_PROTOCOL_VERSION);
   if(!_config) {
     fmt::print("QUICHE error, could not create config\n");
@@ -218,8 +224,11 @@ QuicheClient::QuicheClient(std::string host, int port) noexcept
   quiche_config_set_initial_max_streams_bidi(_config, 100);
   quiche_config_set_initial_max_streams_uni(_config, 100);
   quiche_config_set_cc_algorithm(_config, QUICHE_CC_RENO);
+  quiche_config_set_disable_active_migration(_config, true);
 
-  quiche_enable_debug_logging(debug_log, NULL);
+#ifdef QUICHE_DEBUG
+  quiche_config_log_keys(_config);
+#endif
 }
 
 QuicheClient::~QuicheClient()
@@ -348,6 +357,10 @@ void QuicheClient::start()
   else {
     fmt::print("Failed to enable qlog, file {}\n", qfile);
   }
+
+#ifdef QUICHE_DEBUG
+  quiche_conn_set_keylog_path(_conn, "keylog.txt");
+#endif
   
   conn_io->sock = _socket;
   conn_io->conn = _conn;
@@ -394,33 +407,35 @@ void QuicheClient::stop()
 
 void QuicheClient::send_message_stream(const char * buffer, size_t len)
 {
-  uint64_t id = (_stream_id << 2) | 0x02;
+  {
+    std::lock_guard<std::mutex> lock(client_flush_mutex);
+    uint64_t id = (_stream_id++ << 2) | 0x02;
+    
+    if (int err = quiche_conn_stream_send(_conn, id, (const uint8_t*)buffer, len, true); err < 0) {
+      fmt::print("failed to send HTTP request {}\n", err);
+      return;
+    }
+  }
   
-  if (int err = quiche_conn_stream_send(_conn, id, (const uint8_t*)buffer, len, true); err < 0) {
-    fmt::print("failed to send HTTP request {}\n", err);
-  }
-  else {
-    flush_egress(_loop, conn_io);
-  }
-
-  _stream_id++;
+  flush_egress(_loop, conn_io);
 }
 
 void QuicheClient::send_message_datagram(const char * buffer, size_t len)
 {
-  if(int err = quiche_conn_dgram_send(_conn, (const uint8_t*)buffer, len); err < 0) {
-    fmt::print("failed to send dgram {}\n", err);
-    return;
+  {
+    std::lock_guard<std::mutex> lock(client_flush_mutex);
+    if(int err = quiche_conn_dgram_send(_conn, (const uint8_t*)buffer, len); err < 0) {
+      fmt::print("failed to send dgram {}\n", err);
+      return;
+    }
   }
 
-  flush_egress(_loop, conn_io);
+  flush_egress(_loop, conn_io);  
 }
 
 void QuicheClient::recv_cb(const uint8_t* buf, size_t len)
 {
-  if(_on_received_callback) {
-    _on_received_callback((const char*)buf, len);
-  }
+  if(_on_received_callback) _on_received_callback((const char*)buf, len);
 }
 
 Capabilities QuicheClient::get_capabilities()

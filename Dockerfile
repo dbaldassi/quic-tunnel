@@ -1,9 +1,5 @@
 FROM sharkalash/quic-tunnel-env
 
-# ENV CC "/opt/gcc-12/bin/gcc"
-# ENV CXX "/opt/gcc-12/bin/g++"
-# ENV LD_LIBRARY_PATH "/opt/gcc-12/lib/../lib64"
-
 WORKDIR /root
 
 RUN mkdir quic-forwarding
@@ -23,11 +19,16 @@ RUN cmake .. -DCMAKE_BUILD_TYPE=Release \
     -Dmvfst_DIR=/opt/mvfst/lib/cmake/mvfst \
     -Dfolly_DIR=/opt/mvfst/lib/cmake/folly \
     -DFizz_DIR=/opt/mvfst/lib/cmake/fizz   \
-    -Dfmt_DIR=/opt/mvfst/lib/cmake/fmt
+    -Dfmt_DIR=/opt/mvfst/lib/cmake/fmt \
+    -Dlsquic_DIR=/opt/lsquic/share/lsquic \
+    -DQUICHE_DIR=/opt/quiche
 
 RUN make
 
 RUN mkdir tunnel-in-logs
 RUN mkdir tunnel-out-logs
+
+RUN cp /opt/cert.pem .
+RUN cp /opt/key.pem .
 
 ENTRYPOINT [ "./quic-tunnel" ]

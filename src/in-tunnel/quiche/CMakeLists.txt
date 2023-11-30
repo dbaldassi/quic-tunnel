@@ -13,9 +13,13 @@ target_include_directories( quiche_client PUBLIC
 )
 
 target_include_directories( quiche_client PRIVATE
-  ${CMAKE_SOURCE_DIR}/lib/quiche/include
+  ${QUICHE_DIR}/include
   )
 
 string( TOLOWER ${CMAKE_BUILD_TYPE} lower_build_type )
-target_link_directories( quiche_client PUBLIC ${CMAKE_SOURCE_DIR}/lib/quiche/lib/${lower_build_type} )
-target_link_libraries( quiche_client PRIVATE quiche ev )
+target_link_directories( quiche_client PUBLIC ${QUICHE_DIR}/lib/${lower_build_type} )
+target_link_libraries( quiche_client PRIVATE quiche ev fmt )
+
+if( ${CMAKE_BUILD_TYPE} STREQUAL "Debug" )
+  target_compile_definitions( quiche_client PRIVATE -DQUICHE_DEBUG )
+endif()
