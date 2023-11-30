@@ -586,6 +586,9 @@ void QuicheServer::start()
   watcher.data = (void*)this;
 
   ev_loop(_loop, 0);
+  ev_loop_destroy(_loop);
+    
+  _loop = nullptr;
 }
 
 bool QuicheServer::set_datagrams(bool enable)
@@ -633,9 +636,6 @@ void QuicheServer::stop()
     ev_async_init(&async_watcher, async_callback);
     ev_async_start(_loop, &async_watcher);
     ev_async_send(_loop, &async_watcher);
-       
-    ev_break(_loop, EVBREAK_ONE);
-    _loop = nullptr;
   }
   
   if(conn_io) {
