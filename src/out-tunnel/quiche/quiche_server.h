@@ -2,6 +2,7 @@
 #define QUICHE_SERVER_H
 
 #include <atomic>
+#include <queue>
 #include <condition_variable>
 
 // #include <openssl/ssl.h>
@@ -13,6 +14,7 @@ class quiche_config;
 class quiche_conn;
 struct ev_loop;
 struct ev_timer;
+struct ev_async;
 
 class QuicheServer : public QuicServer, public out::UdpSocketCallback
 {
@@ -42,8 +44,11 @@ class QuicheServer : public QuicServer, public out::UdpSocketCallback
   socklen_t _local_len;
   socklen_t _peer_len;
 
-  std::unique_ptr<ev_timer> _timer;
+  std::unique_ptr<struct ev_timer> _timer;
+  std::unique_ptr<struct ev_async> _async_watcher;
   struct ev_loop * _loop;
+
+  std::queue<std::vector<char>> _queue;
   
   bool init_socket();
   

@@ -45,7 +45,7 @@ static std::string get_quiche_error(ssize_t code)
   case QUICHE_ERR_TLS_FAIL: return "QUICHE_ERR_TLS_FAIL";
   case QUICHE_ERR_FLOW_CONTROL: return "QUICHE_ERR_FLOW_CONTROL";
   case QUICHE_ERR_STREAM_LIMIT: return "QUICHE_ERR_STREAM_LIMIT";
-  case QUICHE_ERR_STREAM_STOPPED: return "QUICHE_ERR_STREAM_STOPPED";
+  case QUICHE_ERR_STREAM_STOPPED: return "QUICHE_ERR_STREAM_STOPPED";    
   case QUICHE_ERR_STREAM_RESET: return "QUICHE_ERR_STREAM_RESET";
   case QUICHE_ERR_FINAL_SIZE: return "QUICHE_ERR_FINAL_SIZE";
   case QUICHE_ERR_CONGESTION_CONTROL: return "QUICHE_ERR_CONGESTION_CONTROL";
@@ -404,23 +404,9 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
 
   if(conn_io) {
     flush_egress(loop, conn_io);
-    
+
     if (quiche_conn_is_closed(conn_io->conn)) {
-      quiche_stats stats;
-      quiche_path_stats path_stats;
-
-      quiche_conn_stats(conn_io->conn, &stats);
-      quiche_conn_path_stats(conn_io->conn, 0, &path_stats);
-
-      fprintf(stderr, "connection closed, recv=%zu sent=%zu lost=%zu rtt=%" PRIu64 "ns cwnd=%zu\n",
-	      stats.recv, stats.sent, stats.lost, path_stats.rtt, path_stats.cwnd);
-
       ev_timer_stop(loop, &conn_io->timer);
-      quiche_conn_free(conn_io->conn);
-      free(conn_io);
-
-      server->set_conn(nullptr);
-      server->conn_io = nullptr;
     }
   }
 }
@@ -428,25 +414,18 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
 static void timeout_cb(EV_P_ ev_timer *w, int revents)
 {
   struct timeout_cb_data *data = reinterpret_cast<struct timeout_cb_data*>(w->data);
-  quiche_conn_on_timeout(data->conn_io->conn);
+
+  {
+    std::lock_guard<std::mutex> lock(server_flush_mutex);
+    quiche_conn_on_timeout(data->conn_io->conn);
+
+    if (quiche_conn_is_closed(data->conn_io->conn)) {
+      ev_timer_stop(loop, &data->conn_io->timer);
+      return;
+    }
+  }
 
   flush_egress(loop, data->conn_io);
-
-  if (quiche_conn_is_closed(data->conn_io->conn)) {
-    quiche_stats stats;
-    quiche_path_stats path_stats;
-
-    quiche_conn_stats(data->conn_io->conn, &stats);
-    quiche_conn_path_stats(data->conn_io->conn, 0, &path_stats);
-
-    fprintf(stderr, "connection closed, recv=%zu sent=%zu lost=%zu rtt=%" PRIu64 "ns cwnd=%zu\n",
-	    stats.recv, stats.sent, stats.lost, path_stats.rtt, path_stats.cwnd);
-
-    ev_timer_stop(loop, &data->conn_io->timer);
-    quiche_conn_free(data->conn_io->conn);
-    free(data->conn_io);
-    free(data);
-  }
 }
 
 static void debug_log(const char *line, void *argp)
@@ -457,6 +436,7 @@ static void debug_log(const char *line, void *argp)
 
 static void async_callback(EV_P_ ev_async*, int)
 {
+  fmt::print("break loop\n");
   ev_break(EV_A_ EVBREAK_ONE);
 }
 
@@ -502,12 +482,12 @@ QuicheServer::QuicheServer(const std::string& host, uint16_t port, out::UdpSocke
   // quiche_config_set_max_idle_timeout(_config, 5000);
   quiche_config_set_max_recv_udp_payload_size(_config, MAX_DATAGRAM_SIZE);
   quiche_config_set_max_send_udp_payload_size(_config, MAX_DATAGRAM_SIZE);
-  quiche_config_set_initial_max_data(_config, 10000000);
-  quiche_config_set_initial_max_stream_data_bidi_local(_config, 1000000);
-  quiche_config_set_initial_max_stream_data_bidi_remote(_config, 1000000);
-  quiche_config_set_initial_max_stream_data_uni(_config, 1000000);
-  quiche_config_set_initial_max_streams_bidi(_config, 100);
-  quiche_config_set_initial_max_streams_uni(_config, 100);
+  quiche_config_set_initial_max_data(_config, 10'000'000);
+  quiche_config_set_initial_max_stream_data_bidi_local(_config, 1'000'000);
+  quiche_config_set_initial_max_stream_data_bidi_remote(_config, 1'000'000);
+  quiche_config_set_initial_max_stream_data_uni(_config, 1'000'000);
+  quiche_config_set_initial_max_streams_bidi(_config, 1'000'000);
+  quiche_config_set_initial_max_streams_uni(_config, 1'000'000);
   quiche_config_set_cc_algorithm(_config, QUICHE_CC_RENO);
   quiche_config_set_disable_active_migration(_config, true);
   
@@ -585,6 +565,10 @@ void QuicheServer::start()
   ev_io_start(_loop, &watcher);
   watcher.data = (void*)this;
 
+  _async_watcher = std::make_unique<struct ev_async>();
+  ev_async_init(_async_watcher.get(), async_callback);
+  ev_async_start(_loop, _async_watcher.get());
+
   ev_loop(_loop, 0);
   ev_loop_destroy(_loop);
     
@@ -621,29 +605,33 @@ bool QuicheServer::set_cc(std::string_view cc) noexcept
 
 void QuicheServer::stop()
 {
+  fmt::print("Closing out udp socket\n");
   _udp_socket->close();
-  
-  if(_conn) {
-    quiche_conn_close(_conn, true, 0, NULL, 0);
-    quiche_conn_free(_conn);
-    _conn = nullptr;
-  }
-  
-  if(_loop) {
-    if(conn_io) ev_timer_stop(_loop, &conn_io->timer);
 
-    ev_async async_watcher;
-    ev_async_init(&async_watcher, async_callback);
-    ev_async_start(_loop, &async_watcher);
-    ev_async_send(_loop, &async_watcher);
+  if(_loop) {
+    fmt::print("Closing ev loop\n");
+
+    if(conn_io) ev_timer_stop(_loop, &conn_io->timer);
+ 
+    ev_async_send(_loop, _async_watcher.get());
   }
   
   if(conn_io) {
+    fmt::print("free conn_io\n");
     free(conn_io);
     conn_io = nullptr;
   }
 
+  if(_conn) {
+    fmt::print("free connection\n");
+    
+    quiche_conn_close(_conn, true, 0, NULL, 0);
+    quiche_conn_free(_conn);
+    _conn = nullptr;
+  }
+
   if(_socket != -1) {
+    fmt::print("Closing quiche socket\n");
     close(_socket);
     _socket = -1;
   }
@@ -668,11 +656,24 @@ void QuicheServer::onUdpMessage(const char* buffer, size_t len) noexcept
     std::lock_guard<std::mutex> lock(server_flush_mutex);
     
     uint64_t id = (_stream_id++ << 2) | 0x03;
-    
-    if (auto code = quiche_conn_stream_send(_conn, id, (const uint8_t*)buffer, len, true); code < 0) {
-      fmt::print("Failed to send data in stream, id {}, error {} : {}\n", id, code, get_quiche_error(code));
-      return;
+
+    std::vector<char> v(len);
+    memcpy(v.data(), buffer, len);
+    _queue.push(v);
+
+    while(!_queue.empty()) {
+      if (auto code = quiche_conn_stream_send(_conn, id, (const unsigned char*)_queue.front().data(), _queue.front().size(), true); code < 0) {
+	auto cap = quiche_conn_stream_capacity(_conn, id);
+	fmt::print("Send Capacity : {}\n", cap);
+	fmt::print("Failed to send data in stream, id {}, error {} : {}\n", id, code, get_quiche_error(code));
+	return;
+      }
+
+      _queue.pop();
     }
+    
+    auto cap = quiche_conn_stream_capacity(_conn, id);
+    fmt::print("Send Capacity : {}\n", cap);
   }
 
   flush_egress(_loop, conn_io);

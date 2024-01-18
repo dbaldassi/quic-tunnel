@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y \
     liblzma-dev               \
     libsnappy-dev             \
     libunwind-dev             \
-    liburing-dev              \
     libzstd-dev               \
     libdwarf-dev              \
     libgmock-dev              \
@@ -44,13 +43,15 @@ RUN pip3 install matplotlib
 
 WORKDIR /opt
 
-COPY mvfst mvfst
+COPY mvfst-fpic mvfst
 COPY go go
-COPY lsquic lsquic
+COPY lsquic_so_fpic lsquic
 COPY quiche quiche
 COPY boringssl boringssl
 COPY cert.pem cert.pem
 COPY key.pem key.pem
+COPY ev ev
+COPY liburing liburing
 
 ENV PATH="${PATH}:/opt/go/bin"
 

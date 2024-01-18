@@ -1,9 +1,9 @@
 # -- quic go server implementation
 
-add_library( quicgo_server )
+add_library( quicgo_server SHARED )
 add_library( quicgo::server ALIAS quicgo_server )
 
-target_include_directories( quicgo_server PUBLIC
+target_include_directories( quicgo_server PRIVATE
   ${CMAKE_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/..
   )
@@ -21,5 +21,5 @@ add_custom_target( libgo_server ALL
 
 add_dependencies( quicgo_server libgo_server )
 
-target_link_directories( quicgo_server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/go_impl )
-target_link_libraries( quicgo_server PUBLIC go_server fmt::fmt )
+target_link_directories( quicgo_server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/go_impl )
+target_link_libraries( quicgo_server PRIVATE go_server fmt::fmt )

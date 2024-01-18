@@ -7,12 +7,10 @@ project( quic-tunnel )
 # -- Module path
 set( CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" )
 
-# -- check for required package
-find_package( mvfst  REQUIRED )
-find_package( lsquic REQUIRED )
-find_package( fmt    REQUIRED )
-
 # -- External dependencies
+
+find_package( fmt  REQUIRED )
+
 # --- ASIO
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/external/asio/asio/include )
 # --- websocketpp

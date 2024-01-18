@@ -1,7 +1,6 @@
 #ifndef LSQUIC_SERVER_H
 #define LSQUIC_SERVER_H
 
-#include <lsquic.h>
 #include <atomic>
 #include <condition_variable>
 
@@ -10,9 +9,30 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-#include <openssl/ssl.h>
-
 #include "quic_server.h"
+
+struct lsquic_engine;
+typedef struct lsquic_engine lsquic_engine_t;
+
+struct lsquic_engine_api;
+struct lsquic_stream_if;
+struct lsquic_logger_if;
+struct lsquic_engine_settings;
+
+struct lsquic_conn_ctx;
+typedef struct lsquic_conn_ctx lsquic_conn_ctx_t;
+
+struct lsquic_conn;
+typedef struct lsquic_conn lsquic_conn_t;
+
+struct lsquic_stream;
+typedef struct lsquic_stream lsquic_stream_t;
+
+struct lsquic_stream_ctx;
+typedef struct lsquic_stream_ctx lsquic_stream_ctx_t;
+
+struct ssl_ctx_st;
+typedef struct ssl_ctx_st SSL_CTX;
 
 class LsquicServer : public QuicServer
 {
@@ -34,11 +54,11 @@ class LsquicServer : public QuicServer
   bool        _datagrams;
   bool        _start;
 
-  lsquic_engine_t   *    _engine;
-  lsquic_engine_api      _engine_api;
-  lsquic_stream_if       _stream_if;
-  lsquic_logger_if       _logger_if;
-  lsquic_engine_settings _engine_settings;
+  lsquic_engine_t    *     _engine;
+  lsquic_engine_api  *     _engine_api;
+  lsquic_stream_if   *     _stream_if;
+  lsquic_logger_if   *     _logger_if;
+  lsquic_engine_settings * _engine_settings;
 
   SSL_CTX    * _ssl_ctx;
   ssl_ctx_st * _cert_ctx;

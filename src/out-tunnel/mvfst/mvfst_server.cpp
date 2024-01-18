@@ -1,6 +1,62 @@
 #include "mvfst_server.h"
 
+#include <quic/fizz/handshake/QuicFizzFactory.h>
+#include <quic/samples/echo/EchoHandler.h>
+#include <quic/samples/echo/LogQuicStats.h>
+#include <quic/server/QuicServer.h>
+#include <quic/server/QuicServerTransport.h>
+#include <quic/server/QuicSharedUDPSocketFactory.h>
 #include <quic/congestion_control/ServerCongestionControllerFactory.h>
+
+#include "callback_handler.h"
+#include "qlogfile.h"
+
+#include <glog/logging.h>
+
+#include <folly/String.h>
+#include <folly/ssl/OpenSSLCertUtils.h>
+
+constexpr folly::StringPiece kP256Key = R"(
+-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIHMPeLV/nP/gkcgU2weiXl198mEX8RbFjPRoXuGcpxMXoAoGCCqGSM49
+AwEHoUQDQgAEnYe8rdtl2Nz234sUipZ5tbcQ2xnJWput//E0aMs1i04h0kpcgmES
+ZY67ltZOKYXftBwZSDNDkaSqgbZ4N+Lb8A==
+-----END EC PRIVATE KEY-----
+)";
+
+constexpr folly::StringPiece kP256Certificate = R"(
+-----BEGIN CERTIFICATE-----
+MIIB7jCCAZWgAwIBAgIJAMVp7skBzobZMAoGCCqGSM49BAMCMFQxCzAJBgNVBAYT
+AlVTMQswCQYDVQQIDAJOWTELMAkGA1UEBwwCTlkxDTALBgNVBAoMBEZpenoxDTAL
+BgNVBAsMBEZpenoxDTALBgNVBAMMBEZpenowHhcNMTcwNDA0MTgyOTA5WhcNNDEx
+MTI0MTgyOTA5WjBUMQswCQYDVQQGEwJVUzELMAkGA1UECAwCTlkxCzAJBgNVBAcM
+Ak5ZMQ0wCwYDVQQKDARGaXp6MQ0wCwYDVQQLDARGaXp6MQ0wCwYDVQQDDARGaXp6
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEnYe8rdtl2Nz234sUipZ5tbcQ2xnJ
+Wput//E0aMs1i04h0kpcgmESZY67ltZOKYXftBwZSDNDkaSqgbZ4N+Lb8KNQME4w
+HQYDVR0OBBYEFDxbi6lU2XUvrzyK1tGmJEncyqhQMB8GA1UdIwQYMBaAFDxbi6lU
+2XUvrzyK1tGmJEncyqhQMAwGA1UdEwQFMAMBAf8wCgYIKoZIzj0EAwIDRwAwRAIg
+NJt9NNcTL7J1ZXbgv6NsvhcjM3p6b175yNO/GqfvpKUCICXFCpHgqkJy8fUsPVWD
+p9fO4UsXiDUnOgvYFDA+YtcU
+-----END CERTIFICATE-----
+)";
+
+class MvfstTransportFactory : public quic::QuicServerTransportFactory
+{  
+  CallbackHandler * _handler;
+  MvfstServer     * _server;
+public:  
+  using FizzServerCtxPtr = std::shared_ptr<const fizz::server::FizzServerContext>;
+  
+  explicit MvfstTransportFactory(CallbackHandler * hdl, MvfstServer * server) noexcept
+    : _handler(hdl), _server(server) {}
+  ~MvfstTransportFactory();
+
+  quic::QuicServerTransport::Ptr make(folly::EventBase* evb,
+				      std::unique_ptr<folly::AsyncUDPSocket> sock,
+				      const folly::SocketAddress&,
+				      quic::QuicVersion,
+				      FizzServerCtxPtr ctx) noexcept override;  
+};
 
 // Linking issue if we don't define these, somehow the symbol are not the mvfst lib
 constexpr folly::StringPiece fizz::Sha256::BlankHash;
@@ -114,12 +170,28 @@ Capabilities MvfstServer::get_capabilities()
 }
 
 MvfstServer::MvfstServer(const std::string& host, uint16_t port, out::UdpSocket * udp_socket)
-  : _host(host), _port(port), _server(quic::QuicServer::createQuicServer()), _udp_socket(udp_socket)
+  : _host(host), _port(port), _server(nullptr), _udp_socket(udp_socket), _datagrams(false)
+{}
+
+void MvfstServer::set_qlog_filename(std::string file_name)
 {
+  _qlog_file = std::move(file_name);
+}
+
+void MvfstServer::start()
+{
+  folly::SocketAddress addr(_host.c_str(), _port);
+  addr.setFromHostPort(_host, _port);
+
   _handler = std::make_unique<CallbackHandler>();
   _handler->set_udp_socket(_udp_socket);
+  _handler->datagrams = _datagrams;
+
   _udp_socket->set_callback(_handler.get());
-  
+
+  _evb = std::make_unique<folly::EventBase>();
+
+  _server = quic::QuicServer::createQuicServer();
   _server->setQuicServerTransportFactory(std::make_unique<MvfstTransportFactory>(_handler.get(),
 											 this));
   _server->setTransportStatsCallbackFactory(std::make_unique<quic::samples::LogQuicStatsFactory>());
@@ -133,30 +205,14 @@ MvfstServer::MvfstServer(const std::string& host, uint16_t port, out::UdpSocket 
   settings.datagramConfig.writeBufSize = 2048;
   settings.maxRecvPacketSize = 4096;
   settings.canIgnorePathMTU = true;
-  settings.defaultCongestionController = _cc;
+  settings.defaultCongestionController = static_cast<quic::CongestionControlType>(_cc);
 
   _server->setCongestionControllerFactory(std::make_shared<quic::ServerCongestionControllerFactory>());
-  _server->setTransportSettings(std::move(settings));
-}
-
-void MvfstServer::set_qlog_filename(std::string file_name)
-{
-  _qlog_file = std::move(file_name);
-}
-
-void MvfstServer::start()
-{
-  folly::SocketAddress addr(_host.c_str(), _port);
-  addr.setFromHostPort(_host, _port);
-
-  auto settings = _server->getTransportSettings();
-  settings.defaultCongestionController = _cc;
-  _server->setTransportSettings(std::move(settings));
-  
+  _server->setTransportSettings(std::move(settings));  
   _server->start(addr, 0);
   
   LOG(INFO) << "Quic out tunnel started at: " << addr.describe();
-  _evb.loopForever();
+  _evb->loopForever();
   LOG(INFO) << "Quic Server stopped ";
 }
 
@@ -165,22 +221,32 @@ void MvfstServer::stop()
   LOG(INFO) << "Stopping quic server";
   _udp_socket->close();
   _server->shutdown();
-  _evb.terminateLoopSoon();
+  _evb->terminateLoopSoon();
 }
 
 bool MvfstServer::set_datagrams(bool enable)
 {
-  _handler->datagrams = enable;
+  _datagrams = enable;
   return true;
 }
 
 bool MvfstServer::set_cc(std::string_view cc) noexcept
 {
-  if(cc == "newreno")    _cc = quic::CongestionControlType::NewReno;
-  else if(cc == "cubic") _cc = quic::CongestionControlType::Cubic;
-  else if(cc == "copa")  _cc = quic::CongestionControlType::Copa;
-  else if(cc == "bbr")   _cc = quic::CongestionControlType::BBR;
-  else                   _cc = quic::CongestionControlType::None;
+  if(cc == "newreno")    _cc = static_cast<uint8_t>(quic::CongestionControlType::NewReno);
+  else if(cc == "cubic") _cc = static_cast<uint8_t>(quic::CongestionControlType::Cubic);
+  else if(cc == "copa")  _cc = static_cast<uint8_t>(quic::CongestionControlType::Copa);
+  else if(cc == "bbr")   _cc = static_cast<uint8_t>(quic::CongestionControlType::BBR);
+  else                   _cc = static_cast<uint8_t>(quic::CongestionControlType::None);
 
   return true;
+}
+
+std::string_view MvfstServer::get_qlog_path() const noexcept
+{
+  return DEFAULT_QLOG_PATH;
+}
+
+std::string_view MvfstServer::get_qlog_filename() const noexcept
+{
+  return _handler->qlog_file;
 }

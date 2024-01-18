@@ -221,8 +221,8 @@ QuicheClient::QuicheClient(std::string host, int port) noexcept
   quiche_config_set_initial_max_stream_data_bidi_local(_config, 1000000);
   quiche_config_set_initial_max_stream_data_bidi_remote(_config, 1000000);
   quiche_config_set_initial_max_stream_data_uni(_config, 1000000);
-  quiche_config_set_initial_max_streams_bidi(_config, 100);
-  quiche_config_set_initial_max_streams_uni(_config, 100);
+  quiche_config_set_initial_max_streams_bidi(_config, 1000000);
+  quiche_config_set_initial_max_streams_uni(_config, 1000000);
   quiche_config_set_cc_algorithm(_config, QUICHE_CC_RENO);
   quiche_config_set_disable_active_migration(_config, true);
 
@@ -378,7 +378,7 @@ void QuicheClient::start()
   
   flush_egress(_loop, conn_io);
 
-  _th = std::thread([this](){ ev_run(_loop, 0); });
+  _th = std::thread([this](){ ev_run(_loop, 0); ev_loop_destroy(_loop); });
 }
 
 void QuicheClient::stop()

@@ -15,13 +15,16 @@ RUN mkdir build
 
 WORKDIR build
 
+ENV LD_LIBRARY_PATH=/opt/mvfst/mvfst/lib:/opt/mvfst/fizz/lib:$PWD/opt/mvfst/folly/lib:/opt/liburing/lib
+
 RUN cmake .. -DCMAKE_BUILD_TYPE=Release \
-    -Dmvfst_DIR=/opt/mvfst/lib/cmake/mvfst \
-    -Dfolly_DIR=/opt/mvfst/lib/cmake/folly \
-    -DFizz_DIR=/opt/mvfst/lib/cmake/fizz   \
-    -Dfmt_DIR=/opt/mvfst/lib/cmake/fmt \
+    -Dmvfst_DIR=/opt/mvfst/mvfst/lib/cmake/mvfst \
+    -Dfolly_DIR=/opt/mvfst/folly/lib/cmake/folly \
+    -DFizz_DIR=/opt/mvfst/fizz/lib/cmake/fizz \
+    -Dfmt_DIR=/opt/mvfst/fmt/lib/cmake/fmt \
     -Dlsquic_DIR=/opt/lsquic/share/lsquic \
-    -DQUICHE_DIR=/opt/quiche
+    -DQUICHE_DIR=/opt/quiche \
+    -Dglog_DIR=/opt/mvfst/glog/lib/cmake/glog
 
 RUN make
 

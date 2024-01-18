@@ -22,6 +22,7 @@ constexpr auto QUIC_SERVER_HOST = "127.0.0.1";
 constexpr auto WEBSOCKET_PORT = 3333;
 constexpr const char * TURN_HOSTNAME = "turn.dabaldassi.fr";
 constexpr const char * IF_NAME = "eth0";
+constexpr const char * QUIC_IMPL = "mvfst";
 
 }
 
@@ -33,6 +34,11 @@ void display_help()
   fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold, "--mode ");
   fmt::print(fg(fmt::color::steel_blue) | fmt::emphasis::bold, "MODE");
   fmt::print(" : Set the mode <client|server>\n");
+
+  fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold, "--quic-impl ");
+  fmt::print(fg(fmt::color::steel_blue) | fmt::emphasis::bold, "IMPL");
+  fmt::print(" : Set the quic implementation to use (for both client and server) "
+	     "(default {})\n", def::QUIC_IMPL);
   
   fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold, "--udp-port ");
   fmt::print(fg(fmt::color::steel_blue) | fmt::emphasis::bold, "PORT");
@@ -76,6 +82,7 @@ enum OptInd : uint8_t {
   WEBSOCKET_PORT,
   IF_NAME,
   QUIC_SERVER_HOST,
+  QUIC_IMPL,
   HELP
 };
 
@@ -109,6 +116,7 @@ int main(int argc, char *argv[])
     { "websocket-port", required_argument, 0, 0 },
     { "if_name", required_argument, 0, 0 },
     { "quic-server-host", required_argument, 0, 0 },
+    { "quic-impl", required_argument, 0, 0 },
     { "help", no_argument, 0, 0 },
     { 0, 0, 0, 0 },
   };
@@ -121,6 +129,7 @@ int main(int argc, char *argv[])
   std::string if_name   = def::IF_NAME;
   std::string turn_addr = def::TURN_HOSTNAME;
   std::string quic_server_host = def::QUIC_SERVER_HOST;
+  std::string quic_impl = def::QUIC_IMPL;
   
   while(true) {
     int option_index = 0;
@@ -152,6 +161,7 @@ int main(int argc, char *argv[])
     case OptInd::IF_NAME: if_name = optarg; break;
     case OptInd::QUIC_SERVER_HOST: quic_server_host = optarg; break;
     case OptInd::QUIC_PORT: quic_port = std::stoi(optarg); break;
+    case OptInd::QUIC_IMPL: quic_impl = optarg; break;
     case OptInd::HELP: display_help(); std::exit(0);
     }    
   }
@@ -164,9 +174,9 @@ int main(int argc, char *argv[])
   }
 
   if(*mode == "client") {
-    InTunnel in(0, "quiche", quic_server_host, quic_port);
+    InTunnel in(0, quic_impl, quic_server_host, quic_port);
     in.allocate_in_port();
-    in.set_datagram(false);
+    in.set_datagram(true);
 
     __in__ = &in;
     
@@ -177,8 +187,8 @@ int main(int argc, char *argv[])
     if(__stop_thread__.joinable()) __stop_thread__.join();
   }
   else if(*mode == "server") {
-    OutTunnel out(0, "quiche", turn_addr, quic_port, turn_port);
-    out.set_datagrams(false);
+    OutTunnel out(0, quic_impl, turn_addr, quic_port, turn_port);
+    out.set_datagrams(true);
 
     __out__ = &out;    
     signal(SIGINT, onstop<OutTunnel>);

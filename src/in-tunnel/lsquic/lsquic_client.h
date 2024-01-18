@@ -10,9 +10,33 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <thread>
 
-#include <lsquic.h>
-#include <openssl/ssl.h>
+struct lsquic_engine;
+typedef struct lsquic_engine lsquic_engine_t;
+
+struct lsquic_engine_api;
+struct lsquic_stream_if;
+struct lsquic_logger_if;
+struct lsquic_engine_settings;
+
+struct lsquic_conn_ctx;
+typedef struct lsquic_conn_ctx lsquic_conn_ctx_t;
+
+struct lsquic_conn;
+typedef struct lsquic_conn lsquic_conn_t;
+
+struct lsquic_stream;
+typedef struct lsquic_stream lsquic_stream_t;
+
+struct lsquic_stream_ctx;
+typedef struct lsquic_stream_ctx lsquic_stream_ctx_t;
+
+struct ssl_ctx_st;
+typedef struct ssl_ctx_st SSL_CTX;
+
+struct lsquic_stream;
+typedef struct lsquic_stream lsquic_stream_t;
 
 class LsquicClient final : public QuicClient
 {
@@ -34,12 +58,13 @@ class LsquicClient final : public QuicClient
 
   SSL_CTX    * _ssl_ctx;
 
-  lsquic_engine_t   *    _engine;
-  lsquic_engine_api      _engine_api;
-  lsquic_stream_if       _stream_if;
-  lsquic_logger_if       _logger_if;
-  lsquic_engine_settings _engine_settings;
-  lsquic_conn_t *        _conn;
+  lsquic_conn_t *          _conn;
+  lsquic_engine_t    *     _engine;
+  lsquic_engine_api  *     _engine_api;
+  lsquic_stream_if   *     _stream_if;
+  lsquic_logger_if   *     _logger_if;
+  lsquic_engine_settings * _engine_settings;
+  lsquic_stream_t * _stream;
   
   int _socket;
   unsigned char _buf[MAX_BUF_LEN];
@@ -54,19 +79,26 @@ class LsquicClient final : public QuicClient
   
   static std::atomic<int> _ref_count;
   std::atomic<bool>       _start;
+
+  std::thread _thread;
+  std::thread _recv_th;
+  bool _run;
   
   static void init_lsquic();
   static void exit_lsquic();
 
   void init_socket();
   void close_socket();
+
+  ssize_t recv();
+  ssize_t recv_msg();
   
 public:
   static constexpr const char * DEFAULT_QLOG_PATH = "tunnel-in-logs";
   static constexpr const char * IMPL_NAME = "lsquic";
   
   LsquicClient(std::string host, int port) noexcept;
-  ~LsquicClient() = default;
+  ~LsquicClient() override;
 
   // -- quic client interface
   void set_qlog_filename(std::string filename) noexcept override;
@@ -88,7 +120,7 @@ public:
   void on_read(lsquic_stream_t * stream);
   void on_write(lsquic_stream_t * stream);
   void on_stream_close(lsquic_stream_t * stream);
-  // int send_packets_out(const struct lsquic_out_spec *specs, unsigned n_specs);
+  int send_packets_out(const struct lsquic_out_spec *specs, unsigned n_specs);
   
   static Capabilities get_capabilities();
 };

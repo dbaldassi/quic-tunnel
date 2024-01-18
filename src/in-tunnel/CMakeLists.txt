@@ -26,8 +26,8 @@ target_include_directories( quic-tunnel PRIVATE
   )
 
 target_link_libraries( quic-tunnel PRIVATE
-  lsquic::client
   mvfst::client
+  lsquic::client
   quicgo::client
   quiche::client
   )
