@@ -185,7 +185,7 @@ void CallbackHandler::onUdpMessage(const char * buffer, size_t len) noexcept
       // LOG(INFO) << "len: " << len;
       auto r = _transport->createUnidirectionalStream();
       if(r.hasError()) {
-	LOG(ERROR) << "In quic tunnel write chain error=" << uint32_t(r.error());
+	LOG(ERROR) << "In quic tunnel write chain error=" << uint32_t(r.error() );
 	return;
       }
       auto id = r.value();

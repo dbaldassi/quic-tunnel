@@ -42,8 +42,8 @@ void QuicServerBuilder::get_capabilities(std::vector<Capabilities>& cap)
 {
   cap.push_back(MvfstServer::get_capabilities());
   cap.push_back(QuicGoServer::get_capabilities());
-  cap.push_back(LsquicServer::get_capabilities());
+  // cap.push_back(LsquicServer::get_capabilities());
   cap.push_back(QuicheServer::get_capabilities());
-  cap.push_back(TcpServer::get_capabilities());
+  // cap.push_back(TcpServer::get_capabilities());
   cap.push_back(UdpServer::get_capabilities());
 }

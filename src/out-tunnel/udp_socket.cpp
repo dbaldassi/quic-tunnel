@@ -60,7 +60,7 @@ void UdpSocket::start()
 	  return;
 	}
 	
-	if(errno == EAGAIN || errno == EWOULDBLOCK) continue;
+	if(errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) continue;
 	else {
 	  perror("Could not receive data in UDP socket");
 	  return;

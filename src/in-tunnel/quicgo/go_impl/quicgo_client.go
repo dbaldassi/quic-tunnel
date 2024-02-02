@@ -102,7 +102,10 @@ func goClientStart(addr *C.char, datagrams bool, qlogDir *C.char, wrapper *C.wra
 
 	quicConf := &quic.Config{
 		EnableDatagrams: datagrams,
+		MaxIncomingUniStreams: 1000000,
+		MaxIncomingStreams: 1000000,
 	}
+	
 	qlogWriter, err := GetQLOGWriter(C.GoString(qlogDir), wrapper)
 	if qlogWriter != nil {
 		quicConf.Tracer = qlog.NewTracer(qlogWriter)

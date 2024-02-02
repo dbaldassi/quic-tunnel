@@ -22,6 +22,32 @@ static std::mutex client_flush_mutex;
 extern "C"
 {
 
+static std::string get_quiche_error(ssize_t code)
+{
+  switch(code) {
+  case QUICHE_ERR_DONE: return "QUICHE_ERR_DONE";
+  case QUICHE_ERR_BUFFER_TOO_SHORT: return "QUICHE_ERR_BUFFER_TOO_SHORT";
+  case QUICHE_ERR_UNKNOWN_VERSION: return "QUICHE_ERR_UNKNOWN_VERSION";
+  case QUICHE_ERR_INVALID_FRAME: return "QUICHE_ERR_INVALID_FRAME";
+  case QUICHE_ERR_INVALID_PACKET: return "QUICHE_ERR_INVALID_PACKET";
+  case QUICHE_ERR_INVALID_STATE: return "QUICHE_ERR_INVALID_STATE";
+  case QUICHE_ERR_INVALID_STREAM_STATE: return "QUICHE_ERR_INVALID_STREAM_STATE";
+  case QUICHE_ERR_INVALID_TRANSPORT_PARAM: return "QUICHE_ERR_INVALID_TRANSPORT_PARAM";
+  case QUICHE_ERR_CRYPTO_FAIL: return "QUICHE_ERR_CRYPTO_FAIL";
+  case QUICHE_ERR_TLS_FAIL: return "QUICHE_ERR_TLS_FAIL";
+  case QUICHE_ERR_FLOW_CONTROL: return "QUICHE_ERR_FLOW_CONTROL";
+  case QUICHE_ERR_STREAM_LIMIT: return "QUICHE_ERR_STREAM_LIMIT";
+  case QUICHE_ERR_STREAM_STOPPED: return "QUICHE_ERR_STREAM_STOPPED";    
+  case QUICHE_ERR_STREAM_RESET: return "QUICHE_ERR_STREAM_RESET";
+  case QUICHE_ERR_FINAL_SIZE: return "QUICHE_ERR_FINAL_SIZE";
+  case QUICHE_ERR_CONGESTION_CONTROL: return "QUICHE_ERR_CONGESTION_CONTROL";
+  case QUICHE_ERR_ID_LIMIT: return "QUICHE_ERR_ID_LIMIT";
+  case QUICHE_ERR_OUT_OF_IDENTIFIERS: return "QUICHE_ERR_OUT_OF_IDENTIFIERS";
+  case QUICHE_ERR_KEY_UPDATE: return "QUICHE_ERR_KEY_UPDATE";
+  default: return "Unknown quiche error";
+  }
+}
+
 struct conn_io {
   ev_timer timer;
   int      sock;
@@ -189,7 +215,7 @@ static void async_callback(EV_P_ ev_async*, int)
 }
 
 QuicheClient::QuicheClient(std::string host, int port) noexcept
-  : _host(std::move(host)), _port(port), _qlog_dir(DEFAULT_QLOG_PATH)
+  : _host(std::move(host)), _port(port), _qlog_dir(DEFAULT_QLOG_PATH), _stream_id{1}
 {
   auto ver = quiche_version();
   fmt::print("Quiche version : {}\n", ver);
@@ -409,10 +435,11 @@ void QuicheClient::send_message_stream(const char * buffer, size_t len)
 {
   {
     std::lock_guard<std::mutex> lock(client_flush_mutex);
-    uint64_t id = (_stream_id++ << 2) | 0x02;
+    uint64_t id = (_stream_id << 2) | 0x02;
+    _stream_id = ++_stream_id % 1000000;
     
     if (int err = quiche_conn_stream_send(_conn, id, (const uint8_t*)buffer, len, true); err < 0) {
-      fmt::print("failed to send HTTP request {}\n", err);
+      fmt::print("failed to send HTTP request {} {}\n", err, get_quiche_error(err));
       return;
     }
   }

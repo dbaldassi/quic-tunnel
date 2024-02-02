@@ -129,6 +129,8 @@ func goServerStart(addr *C.char, datagrams bool, qlogDir *C.char, wrapper *C.wra
 	fmt.Println("Starting quic go server ")
 	quicConf := &quic.Config{
 		EnableDatagrams: true,
+		MaxIncomingUniStreams: 1000000,
+		MaxIncomingStreams: 1000000,
 	}
 	qlogWriter, err := GetQLOGWriter(C.GoString(qlogDir), wrapper)
 	if qlogWriter != nil {

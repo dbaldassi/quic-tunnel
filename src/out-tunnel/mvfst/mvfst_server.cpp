@@ -206,6 +206,8 @@ void MvfstServer::start()
   settings.maxRecvPacketSize = 4096;
   settings.canIgnorePathMTU = true;
   settings.defaultCongestionController = static_cast<quic::CongestionControlType>(_cc);
+  settings.advertisedInitialMaxStreamsUni = 1000000;
+  settings.advertisedInitialMaxStreamsBidi = 1000000;
 
   _server->setCongestionControllerFactory(std::make_shared<quic::ServerCongestionControllerFactory>());
   _server->setTransportSettings(std::move(settings));  

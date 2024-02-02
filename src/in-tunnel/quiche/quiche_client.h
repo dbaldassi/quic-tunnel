@@ -53,7 +53,7 @@ class QuicheClient final : public QuicClient
   quiche_config * _config;
   quiche_conn   * _conn;
 
-  int _stream_id = 1;
+  int _stream_id;
   
   bool init_socket();
   void close_socket();

@@ -37,7 +37,8 @@ RUN apt-get update && apt-get install -y \
     iproute2                  \
     moreutils                 \
     libfmt-dev                \
-    libev-dev
+    libev-dev                 \
+    gdb
 
 RUN pip3 install matplotlib
 

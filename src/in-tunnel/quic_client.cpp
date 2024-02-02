@@ -36,8 +36,8 @@ void QuicClientBuilder::get_capabilities(std::vector<Capabilities>& cap)
 {
   cap.push_back(MvfstClient::get_capabilities());
   cap.push_back(QuicGoClient::get_capabilities());
-  cap.push_back(LsquicClient::get_capabilities());
+  // cap.push_back(LsquicClient::get_capabilities());
   cap.push_back(QuicheClient::get_capabilities());
-  cap.push_back(TcpClient::get_capabilities());
+  // cap.push_back(TcpClient::get_capabilities());
   cap.push_back(UdpClient::get_capabilities());
 }
