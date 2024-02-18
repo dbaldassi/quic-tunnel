@@ -20,7 +20,7 @@
 #include <cinttypes>
 
 constexpr size_t LOCAL_CONN_ID_LEN = 16;
-constexpr size_t MAX_DATAGRAM_SIZE = 2500;
+constexpr size_t MAX_DATAGRAM_SIZE = 1350;
 
 std::mutex server_flush_mutex;
 
@@ -81,7 +81,7 @@ struct timeout_cb_data
   
 static void flush_egress(struct ev_loop *loop, struct conn_io *conn_io)
 {  
-  static uint8_t out[65535];
+  static uint8_t out[MAX_DATAGRAM_SIZE];
 
   quiche_send_info send_info;
 
@@ -203,17 +203,17 @@ static struct conn_io *create_conn(uint8_t *scid, size_t scid_len,
     return NULL;
   }
 
-  std::span<uint8_t> scid_view(scid, scid_len);
-  server->set_qlog_filename(fmt::format("{}.qlog", fmt::join(scid_view, "")));
+  // std::span<uint8_t> scid_view(scid, scid_len);
+  // server->set_qlog_filename(fmt::format("{}.qlog", fmt::join(scid_view, "")));
   
-  auto qfile = fmt::format("{}/{}", server->get_qlog_path(), server->get_qlog_filename());
+  // auto qfile = fmt::format("{}/{}", server->get_qlog_path(), server->get_qlog_filename());
 
-  if(quiche_conn_set_qlog_path(conn, qfile.c_str(), "quiche-client qlog", "quiche-client qlog")) {
-    fmt::print("Sucessfully enable qlog, file {}\n", qfile);
-  }
-  else {
-    fmt::print("Failed to enable qlog, file {}\n", qfile);
-  }
+  // if(quiche_conn_set_qlog_path(conn, qfile.c_str(), "quiche-client qlog", "quiche-client qlog")) {
+  //   fmt::print("Sucessfully enable qlog, file {}\n", qfile);
+  // }
+  // else {
+  //   fmt::print("Failed to enable qlog, file {}\n", qfile);
+  // }
   
   server->set_conn(conn);
   
@@ -241,7 +241,7 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
   struct conn_io *tmp, *conn_io = NULL;
 
   static uint8_t buf[65535];
-  static uint8_t out[65535];
+  static uint8_t out[MAX_DATAGRAM_SIZE];
 
   QuicheServer* server = reinterpret_cast<QuicheServer*>(w->data);
   
@@ -250,6 +250,7 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
     socklen_t peer_addr_len = sizeof(peer_addr);
     memset(&peer_addr, 0, peer_addr_len);
 
+    fmt::print("buf size ? {}\n", sizeof(buf));
     ssize_t read = recvfrom(server->get_sock(), buf, sizeof(buf), 0,
 			    (struct sockaddr *) &peer_addr,
 			    &peer_addr_len);
@@ -259,6 +260,8 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
       perror("failed to read");
       return;
     }
+
+    fmt::print("Read {} bytes\n", read);
 
     uint8_t type;
     uint32_t version;
@@ -373,7 +376,7 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
 
     if (done < 0) {
       fmt::print("Failed to process packet: {} {}\n", done, get_quiche_error(done));
-      continue;
+      break;
     }
 
     if (quiche_conn_is_established(server->get_conn())) {
@@ -639,12 +642,13 @@ void QuicheServer::stop()
 
 void QuicheServer::on_recv(const uint8_t * buf, size_t len)
 {
+  // fmt::print("on recv: {}\n", len);
   _udp_socket->send((const char*)buf, len);
 } 
 
 void QuicheServer::onUdpMessage(const char* buffer, size_t len) noexcept
 {
-  if(_datagrams) {
+  if(_datagrams && len < MAX_DATAGRAM_SIZE) {
     std::lock_guard<std::mutex> lock(server_flush_mutex);
     
     if (quiche_conn_dgram_send(_conn, (const uint8_t*)buffer, len) < 0) {
@@ -656,11 +660,12 @@ void QuicheServer::onUdpMessage(const char* buffer, size_t len) noexcept
     std::lock_guard<std::mutex> lock(server_flush_mutex);
     
     uint64_t id = (_stream_id++ << 2) | 0x03;
+    // uint64_t id = (_stream_id << 2) | 0x03;
 
     std::vector<char> v(len);
     memcpy(v.data(), buffer, len);
     _queue.push(v);
-
+    
     while(!_queue.empty()) {
       if (auto code = quiche_conn_stream_send(_conn, id, (const unsigned char*)_queue.front().data(), _queue.front().size(), true); code < 0) {
 	auto cap = quiche_conn_stream_capacity(_conn, id);

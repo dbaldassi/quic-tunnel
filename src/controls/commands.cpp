@@ -308,14 +308,16 @@ ResponsePtr GetStats::run()
   }
   else if(transport == "quic") {
     fs::path               qlog_path{QuicServer::DEFAULT_QLOG_PATH};
-    fs::directory_iterator qlog_it{qlog_path};
-    
-    move_files(results_path, qlog_it->path());
+    // fs::directory_iterator qlog_it{qlog_path};
 
-    if(const char * qvis = std::getenv("QVIS_URL")) resp->qvis_url = qvis;
-    else resp->qvis_url = "https://qvis.dabaldassi.fr";
+    for(const auto& dir : fs::directory_iterator{qlog_path}) {
+      move_files(results_path, dir.path());
+      if(const char * qvis = std::getenv("QVIS_URL")) resp->qvis_url = qvis;
+      else resp->qvis_url = "https://qvis.dabaldassi.fr";
     
-    *resp->qvis_url += std::string("?file=") + (results_path / qlog_it->path().filename()).c_str();
+      *resp->qvis_url += std::string("?file=") + (results_path / dir.path().filename()).c_str();
+      break;
+    }    
   }
 
   return resp;

@@ -15,7 +15,7 @@
 #include <array>
 
 constexpr size_t LOCAL_CONN_ID_LEN = 16;
-constexpr size_t MAX_DATAGRAM_SIZE = 2500;
+constexpr size_t MAX_DATAGRAM_SIZE = 1350;
 
 static std::mutex client_flush_mutex;
 
@@ -67,7 +67,7 @@ struct timeout_cb_data
   
 static void flush_egress(struct ev_loop *loop, struct conn_io *conn_io)
 {
-  static uint8_t out[65535];
+  static uint8_t out[MAX_DATAGRAM_SIZE];
 
   quiche_send_info send_info;
 
@@ -92,8 +92,8 @@ static void flush_egress(struct ev_loop *loop, struct conn_io *conn_io)
     }
   }
 
-  auto uni = quiche_conn_peer_streams_left_uni(conn_io->conn);
-  auto bidi = quiche_conn_peer_streams_left_bidi(conn_io->conn);
+  // auto uni = quiche_conn_peer_streams_left_uni(conn_io->conn);
+  // auto bidi = quiche_conn_peer_streams_left_bidi(conn_io->conn);
 
   double t = quiche_conn_timeout_as_nanos(conn_io->conn) / 1e9f;
   conn_io->timer.repeat = t;
@@ -117,6 +117,7 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
     socklen_t peer_addr_len = sizeof(peer_addr);
     memset(&peer_addr, 0, peer_addr_len);
 
+    fmt::print("buf size ? {}\n", sizeof(buf));
     ssize_t read = recvfrom(conn_io->sock, buf, sizeof(buf), 0,
 			    (struct sockaddr *) &peer_addr,
 			    &peer_addr_len);
@@ -147,7 +148,7 @@ static void recv_cb(EV_P_ ev_io *w, int revents)
     }
 
     if (done < 0) {
-      fprintf(stderr, "failed to process packet\n");
+      fprintf(stderr, "failed to process packet %ld %s\n", done , get_quiche_error(done).c_str());
       continue;
     }
   }
@@ -325,10 +326,10 @@ bool QuicheClient::init_socket()
     return -1;
   }
 
-  if (fcntl(_socket, F_SETFL, O_NONBLOCK) != 0) {
-    perror("failed to make socket non-blocking");
-    return -1;
-  }
+  // if (fcntl(_socket, F_SETFL, O_NONBLOCK) != 0) {
+  //   perror("failed to make socket non-blocking");
+  //   return -1;
+  // }
   
   return true;
 }
@@ -374,15 +375,15 @@ void QuicheClient::start()
     std::exit(-1);
   }
 
-  _qlog_filename = fmt::format("{}.qlog", fmt::join(scid, ""));
-  auto qfile = fmt::format("{}/{}", _qlog_dir, _qlog_filename);
+  // _qlog_filename = fmt::format("{}.qlog", fmt::join(scid, ""));
+  // auto qfile = fmt::format("{}/{}", _qlog_dir, _qlog_filename);
 
-  if(quiche_conn_set_qlog_path(_conn, qfile.c_str(), "quiche-client qlog", "quiche-client qlog")) {
-    fmt::print("Sucessfully enable qlog, file {}\n", qfile);
-  }
-  else {
-    fmt::print("Failed to enable qlog, file {}\n", qfile);
-  }
+  // if(quiche_conn_set_qlog_path(_conn, qfile.c_str(), "quiche-client qlog", "quiche-client qlog")) {
+  //   fmt::print("Sucessfully enable qlog, file {}\n", qfile);
+  // }
+  // else {
+  //   fmt::print("Failed to enable qlog, file {}\n", qfile);
+  // }
 
 #ifdef QUICHE_DEBUG
   quiche_conn_set_keylog_path(_conn, "keylog.txt");
@@ -395,8 +396,8 @@ void QuicheClient::start()
   _loop = ev_default_loop(0);
   _watcher = std::make_unique<ev_io>();
   
-  ev_io_init(_watcher.get(), ::recv_cb, conn_io->sock, EV_READ);
-  ev_io_start(_loop, _watcher.get());
+  // ev_io_init(_watcher.get(), ::recv_cb, conn_io->sock, EV_READ);
+  // ev_io_start(_loop, _watcher.get());
   _watcher->data = conn_io;
 
   ev_init(&conn_io->timer, timeout_cb);
@@ -449,10 +450,15 @@ void QuicheClient::send_message_stream(const char * buffer, size_t len)
 
 void QuicheClient::send_message_datagram(const char * buffer, size_t len)
 {
+  if(len >= MAX_DATAGRAM_SIZE) {
+    send_message_stream(buffer, len);
+    return;
+  }
+  
   {
     std::lock_guard<std::mutex> lock(client_flush_mutex);
     if(int err = quiche_conn_dgram_send(_conn, (const uint8_t*)buffer, len); err < 0) {
-      fmt::print("failed to send dgram {}\n", err);
+      fmt::print("failed to send dgram {} {}\n", err, get_quiche_error(err));
       return;
     }
   }
