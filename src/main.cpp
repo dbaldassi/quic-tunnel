@@ -176,7 +176,7 @@ int main(int argc, char *argv[])
   if(*mode == "client") {
     InTunnel in(0, quic_impl, quic_server_host, quic_port);
     in.allocate_in_port();
-    in.set_datagram(false);
+    in.set_datagram(true);
 
     __in__ = &in;
     
@@ -188,7 +188,7 @@ int main(int argc, char *argv[])
   }
   else if(*mode == "server") {
     OutTunnel out(0, quic_impl, turn_addr, quic_port, turn_port);
-    out.set_datagrams(false);
+    out.set_datagrams(true);
 
     __out__ = &out;    
     signal(SIGINT, onstop<OutTunnel>);
@@ -206,6 +206,6 @@ int main(int argc, char *argv[])
 
     tc::Link::exit();
   }
-  
+
   return 0;
 }

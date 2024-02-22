@@ -3,6 +3,7 @@
 #include "quicgo/quicgo_client.h"
 #include "quiche/quiche_client.h"
 #include "lsquic/lsquic_client.h"
+#include "msquic/msquic_client.h"
 #include "tcp/tcp_client.h"
 #include "udp/udp_client.h"
 
@@ -23,6 +24,8 @@ std::unique_ptr<QuicClient> QuicClientBuilder::create() const
     return std::make_unique<LsquicClient>(dst_host, dst_port);
   case QuicImplementation::QUICHE:
     return std::make_unique<QuicheClient>(dst_host, dst_port);
+  case QuicImplementation::MSQUIC:
+    return std::make_unique<MsquicClient>(dst_host, dst_port);
   case QuicImplementation::TCP:
     return std::make_unique<TcpClient>(dst_host, dst_port, src_port);
   case QuicImplementation::UDP:
@@ -38,6 +41,7 @@ void QuicClientBuilder::get_capabilities(std::vector<Capabilities>& cap)
   cap.push_back(QuicGoClient::get_capabilities());
   // cap.push_back(LsquicClient::get_capabilities());
   cap.push_back(QuicheClient::get_capabilities());
+  cap.push_back(MsquicClient::get_capabilities());
   // cap.push_back(TcpClient::get_capabilities());
   cap.push_back(UdpClient::get_capabilities());
 }

@@ -56,6 +56,7 @@ OutTunnel::OutTunnel(int id,
   if(impl == "quicgo"sv)      builder.impl = QuicServerBuilder::QuicImplementation::QUICGO;
   else if(impl == "mvfst"sv)  builder.impl = QuicServerBuilder::QuicImplementation::MVFST;
   else if(impl == "lsquic"sv) builder.impl = QuicServerBuilder::QuicImplementation::LSQUIC;
+  else if(impl == "msquic"sv) builder.impl = QuicServerBuilder::QuicImplementation::MSQUIC;
   else if(impl == "quiche"sv) builder.impl = QuicServerBuilder::QuicImplementation::QUICHE;
   else if(impl == "tcp"sv)    builder.impl = QuicServerBuilder::QuicImplementation::TCP;
   else if(impl == "udp"sv)    builder.impl = QuicServerBuilder::QuicImplementation::UDP;
