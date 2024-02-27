@@ -48,6 +48,7 @@ COPY mvfst-fpic mvfst
 COPY go go
 COPY lsquic_so_fpic lsquic
 COPY quiche quiche
+COPY msquic msquic
 COPY boringssl boringssl
 COPY cert.pem cert.pem
 COPY key.pem key.pem

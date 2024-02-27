@@ -3,6 +3,8 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <fstream>
+#include <chrono>
 
 #include "quic_server.h"
 
@@ -20,8 +22,9 @@ class MsquicServer : public QuicServer, public out::UdpSocketCallback
   out::UdpSocket * _udp_socket;
   uint16_t         _cc;
 
-  std::string _qlog_file;
-  bool        _datagrams;
+  std::string   _qlog_file;
+  std::ofstream _qlog_ofs;
+  bool          _datagrams;
 
   const QUIC_API_TABLE * _msquic = nullptr;
   QUIC_HANDLE * _listener = nullptr;
@@ -31,6 +34,12 @@ class MsquicServer : public QuicServer, public out::UdpSocketCallback
 
   std::mutex              _mutex;
   std::condition_variable _cv;
+
+  std::chrono::time_point<std::chrono::system_clock> _time_0;
+
+  void server_send_stream(QUIC_BUFFER* buffer);
+  void server_send_datagram(QUIC_BUFFER* buffer);
+  void write_stats(const QUIC_CONNECTION_EVENT* event);
   
 public:
   static constexpr const char * DEFAULT_QLOG_PATH = "tunnel-out-logs";
@@ -56,9 +65,7 @@ public:
   unsigned int server_connection_callback(QUIC_HANDLE* connection, QUIC_CONNECTION_EVENT* event);
   unsigned int server_stream_callback(QUIC_HANDLE* stream, QUIC_STREAM_EVENT* event);
   void server_on_datagram_send_state_changed(unsigned int state, void* ctx);
-  void server_send_stream(QUIC_BUFFER* buffer);
-  void server_send_datagram(QUIC_BUFFER* buffer);
-
+  
   void onUdpMessage(const char* buffer, size_t len) noexcept override;
 };
 

@@ -13,10 +13,6 @@ target_include_directories( msquic_server PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/..
   )
 
-# target_include_directories( msquic_server PRIVATE
-#   ${QUICHE_DIR}/include
-#   )
-
 set_target_properties( msquic_server PROPERTIES CXX_STANDARD 20 )
 
 find_package( msquic REQUIRED )
@@ -27,4 +23,5 @@ target_include_directories( msquic_server PRIVATE
 
 target_link_libraries( msquic_server
   msquic
+  nlohmann_json
   )

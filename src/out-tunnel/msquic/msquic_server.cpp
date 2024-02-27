@@ -1,5 +1,15 @@
 #include "msquic_server.h"
 
+#include <filesystem>
+#include <sstream>
+#include <iostream>
+
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+namespace fs = std::filesystem;
+
 #define QUIC_API_ENABLE_PREVIEW_FEATURES 1
 #include <msquic.h>
 
@@ -75,7 +85,7 @@ Capabilities MsquicServer::get_capabilities()
 
 void MsquicServer::set_qlog_filename(std::string file_name)
 {
-
+  _qlog_file = std::move(file_name);
 }
   
 void MsquicServer::start()
@@ -100,6 +110,9 @@ void MsquicServer::start()
 
   settings.CongestionControlAlgorithm = _cc;
   settings.IsSet.CongestionControlAlgorithm = TRUE;
+
+  settings.NetStatsEventEnabled = TRUE;
+  settings.IsSet.NetStatsEventEnabled = TRUE;
 
   QUIC_CREDENTIAL_CONFIG_HELPER Config;
   memset(&Config, 0, sizeof(Config));
@@ -148,6 +161,8 @@ void MsquicServer::stop()
   printf("Stopping MsQuic server\n");
   _udp_socket->close();
 
+  if(_qlog_ofs.is_open()) _qlog_ofs.close();
+  
   if(_msquic) {
     if(_listener) {
       printf("Closing listener\n");
@@ -197,13 +212,26 @@ QUIC_STATUS MsquicServer::server_listener_callback(QUIC_HANDLE* listener, QUIC_L
 QUIC_STATUS MsquicServer::server_connection_callback(QUIC_HANDLE* connection, QUIC_CONNECTION_EVENT* event)
 {
   switch (event->Type) {
-  case QUIC_CONNECTION_EVENT_CONNECTED:
+  case QUIC_CONNECTION_EVENT_CONNECTED: {
     //
     // The handshake has completed for the connection.
     //
     printf("[conn][%p] Connected\n", connection);
     _msquic->ConnectionSendResumptionTicket(connection, QUIC_SEND_RESUMPTION_FLAG_NONE, 0, NULL);
+
+    uint32_t SizeOfBuffer = 8;
+    uint8_t Buffer[8] = {0};
+    _msquic->GetParam(connection, QUIC_PARAM_CONN_ORIG_DEST_CID, &SizeOfBuffer, Buffer);
+
+    std::ostringstream oss;
+
+    for(int i = 0; i < SizeOfBuffer; ++i) oss << std::to_string(Buffer[i]);
+    set_qlog_filename(oss.str());
+
+    printf("dcid : %s\n", oss.str().c_str());
+    
     break;
+  }
   case QUIC_CONNECTION_EVENT_SHUTDOWN_INITIATED_BY_TRANSPORT:
     //
     // The connection has been shut down by the transport. Generally, this
@@ -257,7 +285,7 @@ QUIC_STATUS MsquicServer::server_connection_callback(QUIC_HANDLE* connection, QU
     // printf("[conn] Event Datagram state changed\n");
     break;
   case QUIC_CONNECTION_EVENT_NETWORK_STATISTICS:
-    // TODO
+    write_stats(event);
   default:
     break;
   }
@@ -346,6 +374,42 @@ void MsquicServer::server_on_datagram_send_state_changed(unsigned int state, voi
   }
 }
 
+void MsquicServer::write_stats(const QUIC_CONNECTION_EVENT* event)
+{
+  if(_qlog_file.empty()) return;
+  
+  auto stats = event->NETWORK_STATISTICS;
+
+  if(!_qlog_ofs.is_open()) {
+    fs::path path = get_qlog_path();
+    path /= get_qlog_filename();
+    path.replace_extension("qlog");
+    
+    _qlog_ofs.open(path);
+    
+    _time_0 = std::chrono::system_clock::now();
+  }
+  
+  auto now = std::chrono::system_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(now - _time_0));
+  
+  json data = {
+    { "bytes_in_flight", stats.BytesInFlight },
+    { "congestion_window", stats.CongestionWindow },
+    { "smoothed_rtt", stats.SmoothedRTT },
+    { "posted_bytes", stats.PostedBytes },
+    { "estimated_bandwidth", stats.Bandwidth }
+  };
+  
+  json obj = {
+    { "time", time.count() },
+    { "name", "recovery:metrics_updated" },
+    { "data", data }
+  };
+
+  _qlog_ofs << obj.dump() << std::endl;
+}
+
 void MsquicServer::server_send_stream(QUIC_BUFFER* buffer)
 {
   QUIC_STATUS status;
@@ -387,12 +451,12 @@ void MsquicServer::onUdpMessage(const char *buffer, size_t len) noexcept
 
 std::string_view MsquicServer::get_qlog_path() const noexcept
 {
-  return {};
+  return DEFAULT_QLOG_PATH;
 }
 
 std::string_view MsquicServer::get_qlog_filename() const noexcept
 {
-  return {};
+  return _qlog_file;
 }
 
 bool MsquicServer::set_datagrams(bool enable)

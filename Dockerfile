@@ -24,6 +24,7 @@ RUN cmake .. -DCMAKE_BUILD_TYPE=Release \
     -Dfmt_DIR=/opt/mvfst/fmt/lib/cmake/fmt \
     -Dlsquic_DIR=/opt/lsquic/share/lsquic \
     -DQUICHE_DIR=/opt/quiche \
+    -Dmsquic_DIR=/opt/msquic/share/msquic \
     -Dglog_DIR=/opt/mvfst/glog/lib/cmake/glog
 
 RUN make
