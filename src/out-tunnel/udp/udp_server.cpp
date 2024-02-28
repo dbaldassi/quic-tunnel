@@ -3,13 +3,13 @@
 #include <string.h>
 #include <sys/time.h>
 
-void UdpServer::start()
+bool UdpServer::start()
 {
   _socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
   if(_socket < 0) {
     perror("Could not create socket for udp server");
-    std::exit(EXIT_FAILURE);
+    return false;
   }
 
   struct timeval optval;
@@ -29,12 +29,17 @@ void UdpServer::start()
 
   if(bind(_socket, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
     perror("Could not bind UDP socket");
-    std::exit(EXIT_FAILURE);
+    return false;
   }
 
   _out_socket->set_callback(this);
   _out_socket->start();
   
+  return true;
+}
+
+void UdpServer::loop()
+{
   recv();
 }
 

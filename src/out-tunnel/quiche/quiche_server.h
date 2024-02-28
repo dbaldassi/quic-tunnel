@@ -65,7 +65,8 @@ public:
   
   void set_qlog_filename(std::string file_name) override;
 
-  void start() override;
+  bool start() override;
+  void loop() override;
 
   quiche_conn * get_conn() { return _conn; }
   void set_conn(quiche_conn * conn) { _conn = conn; }

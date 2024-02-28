@@ -350,7 +350,7 @@ ssize_t LsquicServer::recv()
 }
 
 
-void LsquicServer::start()
+bool LsquicServer::start()
 {
   fmt::print("Starting lsquic\n");
   
@@ -377,7 +377,12 @@ void LsquicServer::start()
   }).detach();
   
   fmt::print("Start receiving udp message\n");
-    
+  
+  return true;
+}
+
+void LsquicServer::loop()
+{
   while(_start) {
     auto len = recv();
     if(len == -1) break;

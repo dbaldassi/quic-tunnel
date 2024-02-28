@@ -33,6 +33,7 @@ public:
   int id() const { return _id; }
 
 
+  bool start();
   void set_datagrams(bool enable);
   void run();
   void stop();

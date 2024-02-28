@@ -31,7 +31,8 @@ public:
   UdpServer(int port, out::UdpSocket * udp_socket) : _socket(-1), _port(port), _out_socket(udp_socket) {}
   ~UdpServer() = default;
 
-  void start() override;
+  bool start() override;
+  void loop() override;
   void stop() override;
   void recv();
 

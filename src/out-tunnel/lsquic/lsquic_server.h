@@ -96,7 +96,8 @@ public:
   void set_qlog_filename(std::string file_name) override;
 
   ssize_t recv();
-  void start() override;
+  bool start() override;
+  void loop() override;
 
   std::string_view get_qlog_path() const noexcept override { return DEFAULT_QLOG_PATH; }
   std::string_view get_qlog_filename() const noexcept override { return DEFAULT_QLOG_PATH; }

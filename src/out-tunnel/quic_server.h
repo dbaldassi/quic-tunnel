@@ -23,9 +23,14 @@ public:
   virtual ~QuicServer() = default;
 
   /**
-   * @brief Start the quic server in a forever loop
+   * @brief Init the quic server
    */
-  virtual void start() = 0;
+  virtual bool start() = 0;
+
+  /**
+   * @brief Run the quic server in a forever loop
+   */
+  virtual void loop() = 0;
 
   /**
    * @brief Graceful shutdown of the quic server

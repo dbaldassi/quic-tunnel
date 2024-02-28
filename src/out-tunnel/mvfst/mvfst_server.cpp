@@ -178,7 +178,7 @@ void MvfstServer::set_qlog_filename(std::string file_name)
   _qlog_file = std::move(file_name);
 }
 
-void MvfstServer::start()
+bool MvfstServer::start()
 {
   folly::SocketAddress addr(_host.c_str(), _port);
   addr.setFromHostPort(_host, _port);
@@ -212,8 +212,12 @@ void MvfstServer::start()
   _server->setCongestionControllerFactory(std::make_shared<quic::ServerCongestionControllerFactory>());
   _server->setTransportSettings(std::move(settings));  
   _server->start(addr, 0);
-  
-  LOG(INFO) << "Quic out tunnel started at: " << addr.describe();
+
+  return true;
+}
+
+void MvfstServer::loop()
+{
   _evb->loopForever();
   LOG(INFO) << "Quic Server stopped ";
 }

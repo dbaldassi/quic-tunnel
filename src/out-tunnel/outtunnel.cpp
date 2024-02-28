@@ -116,6 +116,11 @@ int run_tcpdump(const char* if_env_name, const char* file_name)
   return -1;
 }
 
+bool OutTunnel::start()
+{
+  return _quic_server->start();
+}
+
 void OutTunnel::run()
 {
   int quic_pid = run_tcpdump("IFQUIC", "quic.csv");
@@ -127,7 +132,7 @@ void OutTunnel::run()
     if(file_pid == 0) return;
   }
   
-  _quic_server->start();
+  _quic_server->loop();
 
   if(quic_pid > 0) kill(quic_pid, SIGTERM);
   if(file_pid > 0) kill(file_pid, SIGTERM);

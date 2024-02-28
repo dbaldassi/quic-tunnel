@@ -21,7 +21,12 @@ QuicGoServer::QuicGoServer(std::string host, uint16_t port, out::UdpSocket * udp
   udp_socket->set_callback(this);
 }
 
-void QuicGoServer::start()
+bool QuicGoServer::start()
+{
+  return true;
+}
+
+void QuicGoServer::loop()
 {  
   std::string addr = _host + ":" + std::to_string(_port);
   goServerStart(const_cast<char*>(addr.c_str()),

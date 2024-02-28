@@ -550,13 +550,18 @@ bool QuicheServer::init_socket()
   return true;
 }
 
-void QuicheServer::start()
+bool QuicheServer::start()
 {
-  if(!init_socket()) return;
+  if(!init_socket()) return false;
 
   _udp_socket->set_callback(this);
   _udp_socket->start();
   
+  return true;
+}
+
+void QuicheServer::loop()
+{
   ev_io watcher;
 
   _loop = ev_default_loop(0);

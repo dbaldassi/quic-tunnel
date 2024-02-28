@@ -26,7 +26,8 @@ public:
   ~QuicGoServer() override = default;
 
   /* Quic server interface */
-  void start() override;
+  bool start() override;
+  void loop() override;
   void stop() override;
   void set_qlog_filename(std::string file_name) override;
   std::string_view get_qlog_path() const noexcept override;

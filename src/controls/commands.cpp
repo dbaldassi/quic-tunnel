@@ -113,6 +113,14 @@ ResponsePtr StartServer::run()
     return resp;
   }
 
+  if(!server->start()) {
+    auto resp = std::make_unique<response::Error>();
+    resp->trans_id = _trans_id;
+    resp->message = "Internal error, could not start quic server";
+
+    return resp;
+  }
+
   // Create websocket response
   auto resp = std::make_unique<response::StartServer>();
   

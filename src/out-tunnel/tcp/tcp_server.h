@@ -30,7 +30,8 @@ public:
   TcpServer(const std::string& dst_host, uint16_t dst_port, uint16_t src_port, out::UdpSocket * sock);
   ~TcpServer() = default;
   
-  void start() override;
+  bool start() override;
+  void loop() override;
   void stop() override;
   void set_qlog_filename(std::string) override {}
   std::string_view get_qlog_path() const noexcept override { return dummy_file_name; }

@@ -22,7 +22,7 @@ TcpServer::TcpServer(const std::string& dst_host, uint16_t dst_port, uint16_t sr
   _udp_socket->set_callback(this);
 }
 
-void TcpServer::start()
+bool TcpServer::start()
 {
   _udp_socket->start();
   
@@ -42,14 +42,22 @@ void TcpServer::start()
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
   std::cout << "bind" << "\n";
-  if(bind(_tcp_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+  if(bind(_tcp_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
     perror("Could not bind");
-
+    return false;
+  }
+  
   std::cout << "listen" << "\n";
   if(listen(_tcp_socket, 10) < 0) {
     perror("Could not listen");
+    return false;
   }
+  
+  return true;
+}
 
+void TcpServer::loop()
+{
   struct sockaddr_in addr_client;
   socklen_t len = sizeof(addr_client);
 
@@ -62,7 +70,6 @@ void TcpServer::start()
   if(_pid_ss == -1) setup_ss();
 
   std::cout << "accepted tcp client " << _dst_host << ":" << _dst_port << "\n";
-  
   receive_loop();
 }
 

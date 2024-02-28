@@ -88,7 +88,7 @@ void MsquicServer::set_qlog_filename(std::string file_name)
   _qlog_file = std::move(file_name);
 }
   
-void MsquicServer::start()
+bool MsquicServer::start()
 {
   _udp_socket->start();
 
@@ -128,17 +128,17 @@ void MsquicServer::start()
 
   if (QUIC_FAILED(status = _msquic->ConfigurationOpen(_registration, &Alpn, 1, &settings, sizeof(settings), NULL, &_configuration))) {
     printf("ConfigurationOpen failed, 0x%x!\n", status);
-    return;
+    return false;
   }
 
   if (QUIC_FAILED(status = _msquic->ConfigurationLoadCredential(_configuration, &Config.CredConfig))) {
     printf("ConfigurationLoadCredential failed, 0x%x!\n", status);
-    return;
+    return false;
   }
 
   if (QUIC_FAILED(status = _msquic->ListenerOpen(_registration, ServerListenerCallback, (void*)this, &_listener))) {
     printf("ListenerOpen failed, 0x%x!\n", status);
-    return;
+    return false;
   }
 
   //
@@ -146,15 +146,19 @@ void MsquicServer::start()
   //
   if (QUIC_FAILED(status = _msquic->ListenerStart(_listener, &Alpn, 1, &Address))) {
     printf("ListenerStart failed, 0x%x!\n", status);
-    return;
+    return false;
   }
 
   printf("Youhou welcome to msquic\n");
 
+  return true;
+}
+
+void MsquicServer::loop()
+{
   std::unique_lock<std::mutex> lock(_mutex);
   _cv.wait(lock);
 }
-
 
 void MsquicServer::stop()
 {
