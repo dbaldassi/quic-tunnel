@@ -104,7 +104,6 @@ try:
             
             f.write(line + '\n')
             
-            
         f.close()
 except:
     print("can't open", medooze)

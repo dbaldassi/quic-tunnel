@@ -105,7 +105,7 @@ bool MsquicServer::start()
   settings.PeerBidiStreamCount = 1;
   settings.IsSet.PeerBidiStreamCount = TRUE;
 
-  settings.PeerUnidiStreamCount = 1;
+  settings.PeerUnidiStreamCount = std::numeric_limits<uint16_t>::max();
   settings.IsSet.PeerUnidiStreamCount = TRUE;
 
   settings.CongestionControlAlgorithm = _cc;
@@ -384,6 +384,18 @@ void MsquicServer::write_stats(const QUIC_CONNECTION_EVENT* event)
   
   auto stats = event->NETWORK_STATISTICS;
 
+  QUIC_STATISTICS_V2 stats_v2;
+  uint32_t size = sizeof(stats_v2);
+  QUIC_STATUS status;
+
+  if(QUIC_FAILED(status = _msquic->GetParam(_connection, QUIC_PARAM_CONN_STATISTICS_V2, &size, &stats_v2))) {
+    printf("Get Statistics v2 failed, 0x%x!\n", status);
+    // return false;
+    return;
+  }
+
+  std::cout << "rtt :" << stats_v2.Rtt << "\n";
+    
   if(!_qlog_ofs.is_open()) {
     fs::path path = get_qlog_path();
     path /= get_qlog_filename();
@@ -401,8 +413,13 @@ void MsquicServer::write_stats(const QUIC_CONNECTION_EVENT* event)
     { "bytes_in_flight", stats.BytesInFlight },
     { "congestion_window", stats.CongestionWindow },
     { "smoothed_rtt", stats.SmoothedRTT },
+    { "rtt", stats_v2.Rtt },
+    { "min_rtt", stats_v2.MinRtt },
     { "posted_bytes", stats.PostedBytes },
-    { "estimated_bandwidth", stats.Bandwidth }
+    { "estimated_bandwidth", stats.Bandwidth },
+    { "total_send_packets", stats_v2.SendTotalPackets },
+    { "lost_packets", stats_v2.SendSuspectedLostPackets - stats_v2.SendSpuriousLostPackets },
+    { "send_cwnd", stats_v2.SendCongestionWindow }
   };
   
   json obj = {

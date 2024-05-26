@@ -1,5 +1,7 @@
 #include "msquic_client.h"
 
+#include <limits>
+
 #define QUIC_API_ENABLE_PREVIEW_FEATURES 1
 #include <msquic.h>
 
@@ -235,7 +237,7 @@ void MsquicClient::start()
   settings.PeerBidiStreamCount = 1;
   settings.IsSet.PeerBidiStreamCount = TRUE;
 
-  settings.PeerUnidiStreamCount = 1;
+  settings.PeerUnidiStreamCount = std::numeric_limits<uint16_t>::max();
   settings.IsSet.PeerUnidiStreamCount = TRUE;
 
   QUIC_CREDENTIAL_CONFIG cred_config;

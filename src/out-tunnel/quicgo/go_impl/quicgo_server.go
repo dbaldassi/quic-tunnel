@@ -141,6 +141,8 @@ func goServerStart(addr *C.char, datagrams bool, qlogDir *C.char, wrapper *C.wra
 	if err != nil {
 		panic(err)
 	}
+	defer listener.Close()
+	
 	conn, err := listener.Accept(context.Background())	
 	if err != nil {
 		panic(err)
@@ -170,6 +172,7 @@ func goServerStart(addr *C.char, datagrams bool, qlogDir *C.char, wrapper *C.wra
 					break
 				}				
 			}
+			// stream.Close()
 		}
 	}()
 	
@@ -179,10 +182,10 @@ func goServerStart(addr *C.char, datagrams bool, qlogDir *C.char, wrapper *C.wra
 			if err.Error() == "Application error 0x0: normal shutdown" {
 				fmt.Println("Shutdown server")
 
-				listener.Close()
+				// listener.Close()
 
-				quicSession.sess = nil
-				quicSession = nil
+				// quicSession.sess = nil
+				// quicSession = nil
 				
 				return
 			} else {
@@ -200,6 +203,8 @@ func goServerStop() {
 	if quicSession != nil {
 		if quicSession.sess != nil {
 			quicSession.sess.CloseWithError(0, "normal shutdown")
+			quicSession.sess = nil
+			quicSession = nil
 		}
 	}
 }

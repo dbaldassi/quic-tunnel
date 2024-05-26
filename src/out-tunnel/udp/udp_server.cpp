@@ -18,6 +18,9 @@ bool UdpServer::start()
   
   setsockopt(_socket, SOL_SOCKET, SO_RCVTIMEO, &optval, sizeof(optval));
 
+  int reuse_val = 1;
+  setsockopt(_socket, SOL_SOCKET, SO_REUSEPORT, &reuse_val, sizeof(reuse_val));
+
   struct sockaddr_in addr;
 
   memset((char *)&addr, 0, sizeof(addr));
@@ -28,7 +31,7 @@ bool UdpServer::start()
   addr.sin_addr.s_addr = INADDR_ANY;
 
   if(bind(_socket, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-    perror("Could not bind UDP socket");
+    perror("[UDP-SERVER] Could not bind UDP socket");
     return false;
   }
 
@@ -48,6 +51,7 @@ void UdpServer::stop()
   if(_socket < 0) return;
 
   close(_socket);
+  shutdown(_socket, SHUT_RDWR);
   _socket = -1;
   
   std::unique_lock<std::mutex> lock(_cv_mutex);

@@ -30,7 +30,7 @@ for line in sys.stdin:
         last_timestamp = timestamp
         last_length = 0
         sec += elapsed
-        file1.write(str(sec) + "," + str(bitrate/8) + "\n")
+        file1.write(str(sec) + "," + str(bitrate) + "\n")
         file1.flush()
 
 file1.close()
